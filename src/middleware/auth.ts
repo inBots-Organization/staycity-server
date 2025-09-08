@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
-import jwt from 'jsonwebtoken';
+import * as jwt from 'jsonwebtoken';
 import { User, IUser } from '../models/User';
 import { RoleName, Permission, getRolePermissions } from '../types/permissions';
 
@@ -27,44 +27,43 @@ export function generateToken(user: IUser): string {
   const permissions = getRolePermissions(user.role);
   
   const payload: JWTPayload = {
-    id: user._id.toString(),
+    id: (user._id as string).toString(),
     email: user.email,
     role: user.role,
     permissions: [...permissions], // Convert readonly array to regular array
   };
 
-  return jwt.sign(
-    payload,
-    process.env.JWT_SECRET || 'your-secret-key',
-    { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
-  );
+  const secret = process.env['JWT_SECRET'] || 'your-secret-key';
+  const expiresIn = process.env['JWT_EXPIRES_IN'] || '7d';
+  
+  return jwt.sign(payload, secret, { expiresIn } as jwt.SignOptions);
 }
 
 // Authentication middleware
-export async function authenticate(req: Request, res: Response, next: NextFunction) {
+export async function authenticate(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const token = req.header('Authorization')?.replace('Bearer ', '');
 
     if (!token) {
-      return res.status(401).json({
+      res.status(401).json({
         success: false,
         message: 'Access denied. No token provided.'
       });
+      return;
     }
 
-    const decoded = jwt.verify(
-      token,
-      process.env.JWT_SECRET || 'your-secret-key'
-    ) as JWTPayload;
+    const secret = process.env['JWT_SECRET'] || 'your-secret-key';
+    const decoded = jwt.verify(token, secret) as JWTPayload;
 
     // Get fresh user data
     const user = await User.findById(decoded.id).select('+password');
     
     if (!user) {
-      return res.status(401).json({
+      res.status(401).json({
         success: false,
         message: 'Invalid token. User not found.'
       });
+      return;
     }
 
     // Attach user and permissions to request
@@ -73,21 +72,23 @@ export async function authenticate(req: Request, res: Response, next: NextFuncti
 
     next();
   } catch (error) {
-    return res.status(401).json({
+    res.status(401).json({
       success: false,
       message: 'Invalid token.'
     });
+    return;
   }
 }
 
 // Authorization middleware with TypeScript intellisense
 export function authorize(requiredPermissions: Permission[]) {
-  return (req: Request, res: Response, next: NextFunction) => {
+  return (req: Request, res: Response, next: NextFunction): void => {
     if (!req.user || !req.permissions) {
-      return res.status(401).json({
+      res.status(401).json({
         success: false,
         message: 'Access denied. Please authenticate first.'
       });
+      return;
     }
 
     // Check if user has at least one of the required permissions
@@ -96,12 +97,13 @@ export function authorize(requiredPermissions: Permission[]) {
     );
 
     if (!hasPermission) {
-      return res.status(403).json({
+      res.status(403).json({
         success: false,
         message: 'Access denied. Insufficient permissions.',
         required: requiredPermissions,
         userPermissions: req.permissions
       });
+      return;
     }
 
     next();
@@ -110,12 +112,13 @@ export function authorize(requiredPermissions: Permission[]) {
 
 // Helper middleware to require all permissions (AND logic)
 export function authorizeAll(requiredPermissions: Permission[]) {
-  return (req: Request, res: Response, next: NextFunction) => {
+  return (req: Request, res: Response, next: NextFunction): void => {
     if (!req.user || !req.permissions) {
-      return res.status(401).json({
+      res.status(401).json({
         success: false,
         message: 'Access denied. Please authenticate first.'
       });
+      return;
     }
 
     // Check if user has ALL required permissions
@@ -124,12 +127,13 @@ export function authorizeAll(requiredPermissions: Permission[]) {
     );
 
     if (!hasAllPermissions) {
-      return res.status(403).json({
+      res.status(403).json({
         success: false,
         message: 'Access denied. Insufficient permissions.',
         required: requiredPermissions,
         userPermissions: req.permissions
       });
+      return;
     }
 
     next();

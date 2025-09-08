@@ -71,5 +71,5 @@ export function getRolePermissions(role: RoleName): readonly Permission[] {
 
 // Helper function to check if role has permission
 export function roleHasPermission(role: RoleName, permission: Permission): boolean {
-  return ROLE_PERMISSIONS[role].includes(permission);
+  return (ROLE_PERMISSIONS[role] as readonly Permission[]).includes(permission);
 }

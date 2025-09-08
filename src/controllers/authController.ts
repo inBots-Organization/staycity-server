@@ -3,16 +3,17 @@ import { User } from '../models/User';
 import { generateToken } from '../middleware/auth';
 import { validationResult } from 'express-validator';
 
-export const loginController = async (req: Request, res: Response) => {
+export const loginController = async (req: Request, res: Response): Promise<void> => {
   try {
     // Check validation errors
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-      return res.status(400).json({
+      res.status(400).json({
         success: false,
         message: 'Validation failed',
         errors: errors.array()
       });
+      return;
     }
 
     const { email, password } = req.body;
@@ -21,20 +22,22 @@ export const loginController = async (req: Request, res: Response) => {
     const user = await User.findOne({ email }).select('+password');
 
     if (!user) {
-      return res.status(401).json({
+      res.status(401).json({
         success: false,
         message: 'Invalid email or password'
       });
+      return;
     }
 
     // Check password
     const isValidPassword = await (user as any).comparePassword(password);
 
     if (!isValidPassword) {
-      return res.status(401).json({
+      res.status(401).json({
         success: false,
         message: 'Invalid email or password'
       });
+      return;
     }
 
     // Generate JWT token
@@ -55,7 +58,7 @@ export const loginController = async (req: Request, res: Response) => {
           updatedAt: user.updatedAt
         },
         token,
-        expiresIn: process.env.JWT_EXPIRES_IN || '7d'
+        expiresIn: process.env['JWT_EXPIRES_IN'] || '7d'
       }
     });
 
@@ -68,16 +71,17 @@ export const loginController = async (req: Request, res: Response) => {
   }
 };
 
-export const registerController = async (req: Request, res: Response) => {
+export const registerController = async (req: Request, res: Response): Promise<void> => {
   try {
     // Check validation errors
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-      return res.status(400).json({
+      res.status(400).json({
         success: false,
         message: 'Validation failed',
         errors: errors.array()
       });
+      return;
     }
 
     const { name, email, password, image } = req.body;
@@ -85,10 +89,11 @@ export const registerController = async (req: Request, res: Response) => {
     // Check if user already exists
     const existingUser = await User.findOne({ email });
     if (existingUser) {
-      return res.status(409).json({
+      res.status(409).json({
         success: false,
         message: 'User with this email already exists'
       });
+      return;
     }
 
     // Create new user (password will be hashed automatically by the pre-save hook)
@@ -120,7 +125,7 @@ export const registerController = async (req: Request, res: Response) => {
           updatedAt: newUser.updatedAt
         },
         token,
-        expiresIn: process.env.JWT_EXPIRES_IN || '7d'
+        expiresIn: process.env['JWT_EXPIRES_IN'] || '7d'
       }
     });
 
@@ -133,15 +138,16 @@ export const registerController = async (req: Request, res: Response) => {
   }
 };
 
-export const getMeController = async (req: Request, res: Response) => {
+export const getMeController = async (req: Request, res: Response): Promise<void> => {
   try {
     const user = req.user;
 
     if (!user) {
-      return res.status(401).json({
+      res.status(401).json({
         success: false,
         message: 'User not authenticated'
       });
+      return;
     }
 
     res.status(200).json({
