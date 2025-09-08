@@ -20,7 +20,8 @@ async function seedUser() {
     const seedUser = new User({
       name: 'Macsoft Admin',
       email: 'info@macsoft.ai',
-      password: 'wessal@2025'
+      password: 'wessal@2025',
+      role: 'super_admin'
     });
 
     await seedUser.save();
