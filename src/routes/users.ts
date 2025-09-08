@@ -1,4 +1,19 @@
-import express from 'express';
+import * as express from 'express';
+import { 
+  getAllUsersController, 
+  getUserByIdController, 
+  createUserController, 
+  updateUserController, 
+  deleteUserController 
+} from '../controllers/userController';
+import { 
+  createUserValidator, 
+  updateUserValidator, 
+  getUserValidator, 
+  deleteUserValidator 
+} from '../validators/userValidators';
+import { authenticate, authorize } from '../middleware/auth';
+import { PERMISSIONS } from '../types/permissions';
 
 const router = express.Router();
 
@@ -15,9 +30,11 @@ const router = express.Router();
  *   get:
  *     summary: Get all users
  *     tags: [Users]
+ *     security:
+ *       - bearerAuth: []
  *     responses:
  *       200:
- *         description: Get all users
+ *         description: Users retrieved successfully
  *         content:
  *           application/json:
  *             schema:
@@ -29,15 +46,24 @@ const router = express.Router();
  *                       type: array
  *                       items:
  *                         $ref: '#/components/schemas/User'
+ *       401:
+ *         description: Unauthorized
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ApiResponse'
+ *       403:
+ *         description: Forbidden - Insufficient permissions
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ApiResponse'
  */
-router.get('/', (req, res) => {
-  // TODO: Implement get all users
-  res.status(200).json({
-    success: true,
-    message: 'Users retrieved successfully',
-    data: []
-  });
-});
+router.get('/', 
+  authenticate, 
+  authorize([PERMISSIONS.USERS_READ]), 
+  getAllUsersController
+);
 
 /**
  * @swagger
@@ -45,6 +71,8 @@ router.get('/', (req, res) => {
  *   post:
  *     summary: Create a new user
  *     tags: [Users]
+ *     security:
+ *       - bearerAuth: []
  *     requestBody:
  *       required: true
  *       content:
@@ -53,7 +81,7 @@ router.get('/', (req, res) => {
  *             $ref: '#/components/schemas/CreateUserRequest'
  *     responses:
  *       201:
- *         description: Create a new user
+ *         description: User created successfully
  *         content:
  *           application/json:
  *             schema:
@@ -64,20 +92,36 @@ router.get('/', (req, res) => {
  *                     data:
  *                       $ref: '#/components/schemas/User'
  *       400:
- *         description: Invalid request body
+ *         description: Validation failed
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ApiResponse'
+ *       401:
+ *         description: Unauthorized
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ApiResponse'
+ *       403:
+ *         description: Forbidden - Insufficient permissions
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ApiResponse'
+ *       409:
+ *         description: User already exists
  *         content:
  *           application/json:
  *             schema:
  *               $ref: '#/components/schemas/ApiResponse'
  */
-router.post('/', (req, res) => {
-  // TODO: Implement create user
-  res.status(201).json({
-    success: true,
-    message: 'User created successfully',
-    data: {}
-  });
-});
+router.post('/', 
+  authenticate, 
+  authorize([PERMISSIONS.USERS_CREATE]), 
+  createUserValidator,
+  createUserController
+);
 
 /**
  * @swagger
@@ -111,15 +155,12 @@ router.post('/', (req, res) => {
  *             schema:
  *               $ref: '#/components/schemas/ApiResponse'
  */
-router.get('/:id', (req, res) => {
-  const { id } = req.params;
-  // TODO: Implement get user by ID
-  res.status(200).json({
-    success: true,
-    message: 'User retrieved successfully',
-    data: { id }
-  });
-});
+router.get('/:id', 
+  authenticate, 
+  authorize([PERMISSIONS.USERS_READ]), 
+  getUserValidator,
+  getUserByIdController
+);
 
 /**
  * @swagger
@@ -165,15 +206,12 @@ router.get('/:id', (req, res) => {
  *             schema:
  *               $ref: '#/components/schemas/ApiResponse'
  */
-router.put('/:id', (req, res) => {
-  const { id } = req.params;
-  // TODO: Implement update user
-  res.status(200).json({
-    success: true,
-    message: 'User updated successfully',
-    data: { id }
-  });
-});
+router.put('/:id', 
+  authenticate, 
+  authorize([PERMISSIONS.USERS_UPDATE]), 
+  updateUserValidator,
+  updateUserController
+);
 
 /**
  * @swagger
@@ -185,7 +223,7 @@ router.put('/:id', (req, res) => {
  *       - in: path
  *         name: id
  *         required: true
- *         description: undefined ID
+ *         description: User ID
  *         schema:
  *           type: string
  *     responses:
@@ -196,20 +234,17 @@ router.put('/:id', (req, res) => {
  *             schema:
  *               $ref: '#/components/schemas/ApiResponse'
  *       404:
- *         description: undefined not found
+ *         description: User not found
  *         content:
  *           application/json:
  *             schema:
  *               $ref: '#/components/schemas/ApiResponse'
  */
-router.delete('/:id', (req, res) => {
-  const { id } = req.params;
-  // TODO: Implement delete user
-  res.status(200).json({
-    success: true,
-    message: 'User deleted successfully',
-    data: { id }
-  });
-});
+router.delete('/:id', 
+  authenticate, 
+  authorize([PERMISSIONS.USERS_DELETE]), 
+  deleteUserValidator,
+  deleteUserController
+);
 
 export default router;
