@@ -10,6 +10,7 @@ import { logger } from '@config/logger';
 import { errorHandler } from '@middleware/errorHandler';
 import { swaggerSpec } from '@config/swagger';
 import usersRoutes from './routes/users';
+import authRoutes from './routes/auth';
 
 const app = express();
 
@@ -82,6 +83,7 @@ app.get('/health', (_req, res) => {
 });
 
 // API routes
+app.use('/api/auth', authRoutes);
 app.use('/api/users', usersRoutes);
 
 // 404 handler

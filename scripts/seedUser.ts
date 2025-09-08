@@ -5,9 +5,17 @@ import { User } from '../src/models/User';
 
 async function seedUser() {
   try {
-    // Connect to database
-    await mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/staycity');
-    console.log('🔌 Connected to MongoDB');
+    const mongoUri = process.env.MONGODB_URI;
+    if (!mongoUri) {
+      throw new Error('MONGODB_URI is not defined in environment variables');
+    }
+
+    console.log('🔗 Connecting to cloud MongoDB...');
+    await mongoose.connect(mongoUri, {
+      serverSelectionTimeoutMS: 10000,
+      socketTimeoutMS: 45000,
+    });
+    console.log('🔌 Connected to MongoDB successfully');
 
     // Check if user already exists
     const existingUser = await User.findOne({ email: 'info@macsoft.ai' });
