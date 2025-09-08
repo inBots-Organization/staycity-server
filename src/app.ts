@@ -4,9 +4,12 @@ import helmet from 'helmet';
 import morgan from 'morgan';
 import compression from 'compression';
 import rateLimit from 'express-rate-limit';
+import swaggerUi from 'swagger-ui-express';
 import { config } from '@config/index';
 import { logger } from '@config/logger';
 import { errorHandler } from '@middleware/errorHandler';
+import { swaggerSpec } from '@config/swagger';
+import usersRoutes from './routes/users';
 
 const app = express();
 
@@ -40,8 +43,37 @@ app.use(morgan('combined', {
   },
 }));
 
+// API Documentation
+app.use('/docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+
 // Health check endpoint
-app.get('/health', (req, res) => {
+/**
+ * @swagger
+ * /health:
+ *   get:
+ *     summary: Health check endpoint
+ *     description: Returns the health status of the server
+ *     tags: [Health]
+ *     responses:
+ *       200:
+ *         description: Server is healthy
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Server is healthy"
+ *                 timestamp:
+ *                   type: string
+ *                   format: date-time
+ *                   example: "2025-09-08T11:18:01.189Z"
+ */
+app.get('/health', (_req, res) => {
   res.status(200).json({
     success: true,
     message: 'Server is healthy',
@@ -49,8 +81,8 @@ app.get('/health', (req, res) => {
   });
 });
 
-// API routes will be added here
-// app.use(config.apiPrefix, routes);
+// API routes
+app.use('/api/users', usersRoutes);
 
 // 404 handler
 app.use((_req, res) => {
