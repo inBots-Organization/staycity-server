@@ -1,16 +1,5 @@
 import swaggerJSDoc from 'swagger-jsdoc';
 import { config } from './index';
-import { User } from '../models/User';
-import {
-  generateSwaggerFromSchema,
-  generateCreateRequestSchema,
-} from '../utils/swaggerGenerator';
-
-// Generate schemas from Mongoose models
-const userSchemas = {
-  ...generateSwaggerFromSchema(User.schema, 'User'),
-  ...generateCreateRequestSchema(User.schema, 'User'),
-};
 
 const options: swaggerJSDoc.Options = {
   definition: {
@@ -35,7 +24,36 @@ const options: swaggerJSDoc.Options = {
         },
       },
       schemas: {
-        ...userSchemas,
+        User: {
+          type: 'object',
+          properties: {
+            id: { type: 'string' },
+            name: { type: 'string' },
+            email: { type: 'string' },
+            role: { 
+              type: 'string',
+              enum: ['super_admin', 'admin', 'manager', 'user']
+            },
+            image: { type: 'string' },
+            createdAt: { type: 'string', format: 'date-time' },
+            updatedAt: { type: 'string', format: 'date-time' },
+          },
+        },
+        UserCreateRequest: {
+          type: 'object',
+          required: ['name', 'email', 'password'],
+          properties: {
+            name: { type: 'string' },
+            email: { type: 'string' },
+            password: { type: 'string' },
+            role: { 
+              type: 'string',
+              enum: ['super_admin', 'admin', 'manager', 'user'],
+              default: 'user'
+            },
+            image: { type: 'string' },
+          },
+        },
         ApiResponse: {
           type: 'object',
           properties: {

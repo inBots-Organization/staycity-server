@@ -1,12 +1,11 @@
 import { Request, Response } from 'express';
-import { User, IUser } from '../models/User';
+import { UserService } from '../services/userService';
 import { validationResult } from 'express-validator';
-import { PERMISSIONS } from '../types/permissions';
 
 // Get all users
 export const getAllUsersController = async (req: Request, res: Response): Promise<void> => {
   try {
-    const users = await User.find().select('-password');
+    const users = await UserService.getAllUsers();
     
     res.status(200).json({
       success: true,
@@ -27,7 +26,15 @@ export const getUserByIdController = async (req: Request, res: Response): Promis
   try {
     const { id } = req.params;
     
-    const user = await User.findById(id).select('-password');
+    if (!id) {
+      res.status(400).json({
+        success: false,
+        message: 'User ID is required'
+      });
+      return;
+    }
+    
+    const user = await UserService.findById(id);
     
     if (!user) {
       res.status(404).json({
@@ -68,7 +75,7 @@ export const createUserController = async (req: Request, res: Response): Promise
     const { name, email, password, role = 'user', image } = req.body;
 
     // Check if user already exists
-    const existingUser = await User.findOne({ email });
+    const existingUser = await UserService.findByEmail(email);
     if (existingUser) {
       res.status(409).json({
         success: false,
@@ -78,18 +85,13 @@ export const createUserController = async (req: Request, res: Response): Promise
     }
 
     // Create new user (password will be hashed automatically)
-    const newUser = new User({
+    const userResponse = await UserService.createUser({
       name,
       email,
       password,
       role,
       image
     });
-
-    await newUser.save();
-
-    // Return user without password
-    const userResponse = await User.findById(newUser._id).select('-password');
 
     res.status(201).json({
       success: true,
@@ -123,8 +125,16 @@ export const updateUserController = async (req: Request, res: Response): Promise
     const { id } = req.params;
     const { name, email, role, image } = req.body;
 
+    if (!id) {
+      res.status(400).json({
+        success: false,
+        message: 'User ID is required'
+      });
+      return;
+    }
+
     // Check if user exists
-    const existingUser = await User.findById(id);
+    const existingUser = await UserService.findById(id);
     if (!existingUser) {
       res.status(404).json({
         success: false,
@@ -135,7 +145,7 @@ export const updateUserController = async (req: Request, res: Response): Promise
 
     // Check if email is being changed and already exists
     if (email !== existingUser.email) {
-      const emailExists = await User.findOne({ email, _id: { $ne: id } });
+      const emailExists = await UserService.checkEmailExists(email, id);
       if (emailExists) {
         res.status(409).json({
           success: false,
@@ -146,11 +156,7 @@ export const updateUserController = async (req: Request, res: Response): Promise
     }
 
     // Update user
-    const updatedUser = await User.findByIdAndUpdate(
-      id,
-      { name, email, role, image },
-      { new: true, runValidators: true }
-    ).select('-password');
+    const updatedUser = await UserService.updateUser(id, { name, email, role, image });
 
     res.status(200).json({
       success: true,
@@ -172,8 +178,16 @@ export const deleteUserController = async (req: Request, res: Response): Promise
   try {
     const { id } = req.params;
     
+    if (!id) {
+      res.status(400).json({
+        success: false,
+        message: 'User ID is required'
+      });
+      return;
+    }
+    
     // Check if user exists
-    const user = await User.findById(id);
+    const user = await UserService.findById(id);
     if (!user) {
       res.status(404).json({
         success: false,
@@ -191,7 +205,7 @@ export const deleteUserController = async (req: Request, res: Response): Promise
       return;
     }
 
-    await User.findByIdAndDelete(id);
+    await UserService.deleteUser(id);
 
     res.status(200).json({
       success: true,

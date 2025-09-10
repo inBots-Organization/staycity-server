@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { User } from '../models/User';
+import { UserService } from '../services/userService';
 import { generateToken } from '../middleware/auth';
 import { validationResult } from 'express-validator';
 
@@ -18,8 +18,8 @@ export const loginController = async (req: Request, res: Response): Promise<void
 
     const { email, password } = req.body;
 
-    // Find user with password field (normally excluded)
-    const user = await User.findOne({ email }).select('+password');
+    // Find user with password field
+    const user = await UserService.findByEmail(email);
 
     if (!user) {
       res.status(401).json({
@@ -30,7 +30,7 @@ export const loginController = async (req: Request, res: Response): Promise<void
     }
 
     // Check password
-    const isValidPassword = await (user as any).comparePassword(password);
+    const isValidPassword = await UserService.comparePassword(user, password);
 
     if (!isValidPassword) {
       res.status(401).json({
@@ -49,7 +49,7 @@ export const loginController = async (req: Request, res: Response): Promise<void
       message: 'Login successful',
       data: {
         user: {
-          id: user._id,
+          id: user.id,
           name: user.name,
           email: user.email,
           role: user.role,
@@ -87,7 +87,7 @@ export const registerController = async (req: Request, res: Response): Promise<v
     const { name, email, password, image } = req.body;
 
     // Check if user already exists
-    const existingUser = await User.findOne({ email });
+    const existingUser = await UserService.findByEmail(email);
     if (existingUser) {
       res.status(409).json({
         success: false,
@@ -96,19 +96,18 @@ export const registerController = async (req: Request, res: Response): Promise<v
       return;
     }
 
-    // Create new user (password will be hashed automatically by the pre-save hook)
-    const newUser = new User({
+    // Create new user (password will be hashed automatically)
+    const newUser = await UserService.createUser({
       name,
       email,
       password,
       image,
-      role: 'user' // Default role
+      role: 'user'
     });
 
-    await newUser.save();
-
-    // Generate JWT token
-    const token = generateToken(newUser);
+    // Generate JWT token - need to get user with password for token generation
+    const userWithPassword = await UserService.findByEmail(newUser.email);
+    const token = generateToken(userWithPassword!);
 
     // Return success response with token (excluding password)
     res.status(201).json({
@@ -116,7 +115,7 @@ export const registerController = async (req: Request, res: Response): Promise<v
       message: 'User registered successfully',
       data: {
         user: {
-          id: newUser._id,
+          id: newUser.id,
           name: newUser.name,
           email: newUser.email,
           role: newUser.role,
@@ -155,7 +154,7 @@ export const getMeController = async (req: Request, res: Response): Promise<void
       message: 'User profile retrieved successfully',
       data: {
         user: {
-          id: user._id,
+          id: user.id,
           name: user.name,
           email: user.email,
           role: user.role,

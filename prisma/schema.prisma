@@ -1,0 +1,61 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+enum RoleName {
+  super_admin
+  admin
+  manager
+  user
+}
+
+enum Permission {
+  users_create
+  users_read
+  users_update
+  users_delete
+  users_manage
+  properties_create
+  properties_read
+  properties_update
+  properties_delete
+  properties_manage
+  bookings_create
+  bookings_read
+  bookings_update
+  bookings_delete
+  bookings_manage
+  reports_view
+  system_manage
+  admin_panel
+}
+
+model User {
+  id        String   @id @default(cuid())
+  name      String   @db.VarChar(100)
+  email     String   @unique @db.VarChar(255)
+  password  String   @db.VarChar(255)
+  role      RoleName @default(user)
+  image     String?  @db.VarChar(500)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("users")
+}
+
+model Role {
+  id          String       @id @default(cuid())
+  name        RoleName     @unique
+  permissions Permission[]
+  description String?      @db.Text
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  @@map("roles")
+}

@@ -1,12 +1,13 @@
 import app from './app';
-import connectDB from '@config/database';
+import { prisma } from '@config/prisma';
 import { config } from '@config/index';
 import { logger } from '@config/logger';
 
 const startServer = async (): Promise<void> => {
   try {
-    // Connect to MongoDB
-    await connectDB();
+    // Test database connection
+    await prisma.$connect();
+    logger.info('Database connected successfully');
 
     // Start the server
     const server = app.listen(config.port, () => {
@@ -18,12 +19,15 @@ const startServer = async (): Promise<void> => {
     const gracefulShutdown = (signal: string) => {
       logger.info(`${signal} received. Starting graceful shutdown...`);
       
-      server.close((error) => {
+      server.close(async (error) => {
         if (error) {
           logger.error('Error during server close:', error);
           process.exit(1);
         }
         
+        // Disconnect from database
+        await prisma.$disconnect();
+        logger.info('Database disconnected');
         logger.info('Server closed successfully');
         process.exit(0);
       });

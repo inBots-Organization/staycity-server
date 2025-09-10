@@ -1,12 +1,9 @@
 import { Request } from 'express';
 import { JwtPayload } from 'jsonwebtoken';
+import { User } from '../generated/prisma';
 
 export interface AuthenticatedRequest extends Request {
-  user?: {
-    id: string;
-    email: string;
-    role: string;
-  };
+  user?: User;
 }
 
 export interface JwtUser extends JwtPayload {

@@ -1,13 +1,14 @@
 import { Request, Response, NextFunction } from 'express';
 import * as jwt from 'jsonwebtoken';
-import { User, IUser } from '../models/User';
+import { UserService } from '../services/userService';
+import { User } from '../generated/prisma';
 import { RoleName, Permission, getRolePermissions } from '../types/permissions';
 
 // Extend Express Request type to include user
 declare global {
   namespace Express {
     interface Request {
-      user?: IUser;
+      user?: User;
       permissions?: Permission[];
     }
   }
@@ -23,11 +24,11 @@ interface JWTPayload {
 }
 
 // Generate JWT token
-export function generateToken(user: IUser): string {
+export function generateToken(user: User): string {
   const permissions = getRolePermissions(user.role);
   
   const payload: JWTPayload = {
-    id: (user._id as string).toString(),
+    id: user.id,
     email: user.email,
     role: user.role,
     permissions: [...permissions], // Convert readonly array to regular array
@@ -56,7 +57,7 @@ export async function authenticate(req: Request, res: Response, next: NextFuncti
     const decoded = jwt.verify(token, secret) as JWTPayload;
 
     // Get fresh user data
-    const user = await User.findById(decoded.id).select('+password');
+    const user = await UserService.findByIdWithPassword(decoded.id);
     
     if (!user) {
       res.status(401).json({
