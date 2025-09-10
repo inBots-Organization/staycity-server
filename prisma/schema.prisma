@@ -4,7 +4,7 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
@@ -58,4 +58,208 @@ model Role {
   updatedAt   DateTime     @updatedAt
 
   @@map("roles")
+}
+
+// ----------------------------------------------------
+// Properties + Devices schema for Staycity
+// ----------------------------------------------------rovider = "prisma-client-js"
+
+enum PropertyStatus {
+  ACTIVE
+  MAINTENANCE
+  INACTIVE
+}
+
+enum RoomType {
+  ROOM
+  SUITE
+}
+
+enum RoomStatus {
+  AVAILABLE
+  OCCUPIED
+  MAINTENANCE
+}
+
+enum DeviceStatus {
+  ONLINE
+  OFFLINE
+}
+
+enum DeviceCategory {
+  CLIMATE // thermostats, HVAC controllers
+  LIGHTING // smart lighting
+  SECURITY // locks, motion sensors
+  ENTERTAINMENT // smart TV, speaker
+  ENVIRONMENTAL // air quality, sensors
+  OTHER
+}
+
+enum DeviceMetric {
+  TEMPERATURE
+  HUMIDITY
+  ENERGY_KWH
+  AQI
+  BATTERY_PCT
+  MOTION
+  LOCK_STATE
+  LIGHT_LEVEL
+  GENERIC_NUMBER
+  GENERIC_TEXT
+}
+
+enum Amenity {
+  WIFI
+  PARKING
+  RESTAURANT
+  SPA
+  GYM
+  POOL
+  BAR
+  LAUNDRY
+}
+
+// -------- Core property objects --------
+
+model Property {
+  id             String         @id @default(cuid())
+  name           String
+  slug           String         @unique
+  status         PropertyStatus @default(ACTIVE)
+  rating         Decimal?       @db.Decimal(2, 1) // e.g., 4.7
+  monthlySavings Int            @default(0) // store cents
+  energyKwh      Decimal?       @db.Decimal(10, 1)
+  floorsCount    Int            @default(0)
+
+  // Location & contact
+  address1     String?
+  address2     String?
+  city         String?
+  country      String?
+  latitude     Decimal? @db.Decimal(10, 7)
+  longitude    Decimal? @db.Decimal(10, 7)
+  contactEmail String?
+  contactPhone String?
+
+  // Relations
+  amenities PropertyAmenity[]
+  stats     PropertyStats?
+  floors    Floor[]
+  rooms     Room[] // convenience: flattened rooms across floors
+  devices   Device[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([city, country])
+  @@index([status])
+}
+
+model PropertyStats {
+  id         String   @id @default(cuid())
+  property   Property @relation(fields: [propertyId], references: [id])
+  propertyId String   @unique
+
+  currentGuests  Int @default(0)
+  totalCapacity  Int @default(0)
+  totalRooms     Int @default(0)
+  availableRooms Int @default(0)
+
+  updatedAt DateTime @updatedAt
+}
+
+model PropertyAmenity {
+  property   Property @relation(fields: [propertyId], references: [id])
+  propertyId String
+  amenity    Amenity
+
+  @@id([propertyId, amenity])
+}
+
+// -------- Hierarchy: Floor -> Room --------
+
+model Floor {
+  id         String   @id @default(cuid())
+  property   Property @relation(fields: [propertyId], references: [id])
+  propertyId String
+
+  name  String // "1st Floor"
+  level Int // 1, 2, 3...
+  rooms Room[]
+  note  String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([propertyId, level])
+  @@index([propertyId])
+}
+
+model Room {
+  id         String   @id @default(cuid())
+  property   Property @relation(fields: [propertyId], references: [id])
+  propertyId String
+  floor      Floor    @relation(fields: [floorId], references: [id])
+  floorId    String
+
+  name     String // "101", "201", "Suite A"
+  type     RoomType   @default(ROOM)
+  status   RoomStatus @default(AVAILABLE)
+  capacity Int        @default(2)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  Device    Device[]
+
+  @@index([propertyId])
+  @@index([floorId])
+}
+
+// -------- Devices --------
+
+model DeviceType {
+  id          String         @id @default(cuid())
+  key         String         @unique // "thermostat", "smart_tv", "motion_sensor", etc.
+  displayName String
+  category    DeviceCategory
+  // Schema for `state` can be documented here; we keep it flexible in Device.state JSON.
+  devices     Device[]
+}
+
+model Device {
+  id         String     @id @default(cuid())
+  property   Property   @relation(fields: [propertyId], references: [id])
+  propertyId String
+  room       Room?      @relation(fields: [roomId], references: [id])
+  roomId     String?
+  type       DeviceType @relation(fields: [typeId], references: [id])
+  typeId     String
+
+  name       String
+  status     DeviceStatus @default(ONLINE)
+  batteryPct Int? // 0..100
+  lastSeenAt DateTime?
+  state      Json? // device-specific live state (e.g., {"tempC": 23.5, "mode":"auto"})
+
+  readings  DeviceReading[]
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
+
+  @@index([propertyId, status])
+  @@index([roomId])
+  @@index([typeId])
+}
+
+model DeviceReading {
+  id       String @id @default(cuid())
+  device   Device @relation(fields: [deviceId], references: [id])
+  deviceId String
+
+  metric     DeviceMetric
+  valueNum   Decimal?     @db.Decimal(14, 4)
+  valueText  String?
+  unit       String? // "°C", "kWh", "%", "AQI", ...
+  recordedAt DateTime     @default(now())
+
+  @@index([deviceId, metric, recordedAt])
 }
