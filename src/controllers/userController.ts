@@ -3,7 +3,7 @@ import { UserService } from '../services/userService';
 import { validationResult } from 'express-validator';
 
 // Get all users
-export const getAllUsersController = async (req: Request, res: Response): Promise<void> => {
+export const getAllUsersController = async (_req: Request, res: Response): Promise<void> => {
   try {
     const users = await UserService.getAllUsers();
     

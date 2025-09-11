@@ -11,15 +11,19 @@ import { errorHandler } from '@middleware/errorHandler';
 import { swaggerSpec } from '@config/swagger';
 import usersRoutes from './routes/users';
 import authRoutes from './routes/auth';
+import propertiesRoutes from './routes/properties';
+import devicesRoutes from './routes/devices';
 
 const app = express();
 
 // Security middleware
 app.use(helmet());
-app.use(cors({
-  origin: config.cors.origin,
-  credentials: true,
-}));
+app.use(
+  cors({
+    origin: config.cors.origin,
+    credentials: true,
+  })
+);
 
 // Rate limiting
 const limiter = rateLimit({
@@ -38,11 +42,13 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
 // HTTP request logging
-app.use(morgan('combined', {
-  stream: {
-    write: (message) => logger.info(message.trim()),
-  },
-}));
+app.use(
+  morgan('combined', {
+    stream: {
+      write: (message) => logger.info(message.trim()),
+    },
+  })
+);
 
 // API Documentation
 app.use('/docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
@@ -85,6 +91,8 @@ app.get('/health', (_req, res) => {
 // API routes
 app.use('/api/auth', authRoutes);
 app.use('/api/users', usersRoutes);
+app.use('/api/properties', propertiesRoutes);
+app.use('/api/devices', devicesRoutes);
 
 // 404 handler
 app.use((_req, res) => {

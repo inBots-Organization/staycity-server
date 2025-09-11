@@ -61,10 +61,11 @@ model Role {
 }
 
 // ----------------------------------------------------
-// Properties + Devices schema for Staycity
-// ----------------------------------------------------rovider = "prisma-client-js"
+// Properties module → Building → Floor → Room
+// (devices stored externally; only references kept here)
+// ----------------------------------------------------
 
-enum PropertyStatus {
+enum BuildingStatus {
   ACTIVE
   MAINTENANCE
   INACTIVE
@@ -81,33 +82,6 @@ enum RoomStatus {
   MAINTENANCE
 }
 
-enum DeviceStatus {
-  ONLINE
-  OFFLINE
-}
-
-enum DeviceCategory {
-  CLIMATE // thermostats, HVAC controllers
-  LIGHTING // smart lighting
-  SECURITY // locks, motion sensors
-  ENTERTAINMENT // smart TV, speaker
-  ENVIRONMENTAL // air quality, sensors
-  OTHER
-}
-
-enum DeviceMetric {
-  TEMPERATURE
-  HUMIDITY
-  ENERGY_KWH
-  AQI
-  BATTERY_PCT
-  MOTION
-  LOCK_STATE
-  LIGHT_LEVEL
-  GENERIC_NUMBER
-  GENERIC_TEXT
-}
-
 enum Amenity {
   WIFI
   PARKING
@@ -119,15 +93,14 @@ enum Amenity {
   LAUNDRY
 }
 
-// -------- Core property objects --------
-
-model Property {
+/// Top-level entity for a hotel/aparthotel building
+model Building {
   id             String         @id @default(cuid())
   name           String
   slug           String         @unique
-  status         PropertyStatus @default(ACTIVE)
-  rating         Decimal?       @db.Decimal(2, 1) // e.g., 4.7
-  monthlySavings Int            @default(0) // store cents
+  status         BuildingStatus @default(ACTIVE)
+  rating         Decimal?       @db.Decimal(2, 1)
+  monthlySavings Int            @default(0)
   energyKwh      Decimal?       @db.Decimal(10, 1)
   floorsCount    Int            @default(0)
 
@@ -141,24 +114,28 @@ model Property {
   contactEmail String?
   contactPhone String?
 
+  // External device refs (array of objects)
+  // Default empty array; stored as JSONB in Postgres
+  externalDevices Json @default(dbgenerated("'[]'::jsonb"))
+
   // Relations
-  amenities PropertyAmenity[]
-  stats     PropertyStats?
+  amenities BuildingAmenity[]
+  stats     BuildingStats?
   floors    Floor[]
-  rooms     Room[] // convenience: flattened rooms across floors
-  devices   Device[]
+  rooms     Room[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([city, country])
   @@index([status])
+  @@map("properties") // keep existing table name
 }
 
-model PropertyStats {
+model BuildingStats {
   id         String   @id @default(cuid())
-  property   Property @relation(fields: [propertyId], references: [id])
-  propertyId String   @unique
+  building   Building @relation(fields: [buildingId], references: [id])
+  buildingId String   @unique @map("propertyId")
 
   currentGuests  Int @default(0)
   totalCapacity  Int @default(0)
@@ -166,100 +143,53 @@ model PropertyStats {
   availableRooms Int @default(0)
 
   updatedAt DateTime @updatedAt
+
+  @@map("property_stats")
 }
 
-model PropertyAmenity {
-  property   Property @relation(fields: [propertyId], references: [id])
-  propertyId String
+model BuildingAmenity {
+  building   Building @relation(fields: [buildingId], references: [id])
+  buildingId String   @map("propertyId")
   amenity    Amenity
 
-  @@id([propertyId, amenity])
+  @@id([buildingId, amenity])
+  @@map("property_amenities")
 }
-
-// -------- Hierarchy: Floor -> Room --------
 
 model Floor {
   id         String   @id @default(cuid())
-  property   Property @relation(fields: [propertyId], references: [id])
-  propertyId String
+  building   Building @relation(fields: [buildingId], references: [id])
+  buildingId String   @map("propertyId")
 
-  name  String // "1st Floor"
-  level Int // 1, 2, 3...
+  name  String
+  level Int
   rooms Room[]
   note  String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@unique([propertyId, level])
-  @@index([propertyId])
+  @@unique([buildingId, level])
+  @@index([buildingId])
+  @@map("floors")
 }
 
 model Room {
   id         String   @id @default(cuid())
-  property   Property @relation(fields: [propertyId], references: [id])
-  propertyId String
+  building   Building @relation(fields: [buildingId], references: [id])
+  buildingId String   @map("propertyId")
   floor      Floor    @relation(fields: [floorId], references: [id])
   floorId    String
 
-  name     String // "101", "201", "Suite A"
+  name     String
   type     RoomType   @default(ROOM)
   status   RoomStatus @default(AVAILABLE)
   capacity Int        @default(2)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  Device    Device[]
 
-  @@index([propertyId])
+  @@index([buildingId])
   @@index([floorId])
-}
-
-// -------- Devices --------
-
-model DeviceType {
-  id          String         @id @default(cuid())
-  key         String         @unique // "thermostat", "smart_tv", "motion_sensor", etc.
-  displayName String
-  category    DeviceCategory
-  // Schema for `state` can be documented here; we keep it flexible in Device.state JSON.
-  devices     Device[]
-}
-
-model Device {
-  id         String     @id @default(cuid())
-  property   Property   @relation(fields: [propertyId], references: [id])
-  propertyId String
-  room       Room?      @relation(fields: [roomId], references: [id])
-  roomId     String?
-  type       DeviceType @relation(fields: [typeId], references: [id])
-  typeId     String
-
-  name       String
-  status     DeviceStatus @default(ONLINE)
-  batteryPct Int? // 0..100
-  lastSeenAt DateTime?
-  state      Json? // device-specific live state (e.g., {"tempC": 23.5, "mode":"auto"})
-
-  readings  DeviceReading[]
-  createdAt DateTime        @default(now())
-  updatedAt DateTime        @updatedAt
-
-  @@index([propertyId, status])
-  @@index([roomId])
-  @@index([typeId])
-}
-
-model DeviceReading {
-  id       String @id @default(cuid())
-  device   Device @relation(fields: [deviceId], references: [id])
-  deviceId String
-
-  metric     DeviceMetric
-  valueNum   Decimal?     @db.Decimal(14, 4)
-  valueText  String?
-  unit       String? // "°C", "kWh", "%", "AQI", ...
-  recordedAt DateTime     @default(now())
-
-  @@index([deviceId, metric, recordedAt])
+  @@map("rooms")
 }
