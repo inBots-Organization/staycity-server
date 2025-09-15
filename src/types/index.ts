@@ -15,6 +15,6 @@ export interface JwtUser extends JwtPayload {
 export interface ApiResponse<T = any> {
   success: boolean;
   message: string;
-  data?: T;
-  error?: string;
+  data?: T | undefined;
+  error?: string | undefined;
 }

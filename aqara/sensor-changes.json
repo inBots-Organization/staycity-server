@@ -1,0 +1,41 @@
+[
+  {
+    "sensor": {
+      "id": "lumi1.54ef44666843",
+      "name": "201",
+      "location": "Floor 2",
+      "type": "motion"
+    },
+    "parameter": "battery",
+    "previousValue": "146",
+    "currentValue": "162",
+    "timestamp": "2025-09-11T11:25:52.944Z",
+    "resourceId": "0.4.85"
+  },
+  {
+    "sensor": {
+      "id": "lumi1.54ef44666843",
+      "name": "201",
+      "location": "Floor 2",
+      "type": "motion"
+    },
+    "parameter": "battery",
+    "previousValue": "162",
+    "currentValue": "141",
+    "timestamp": "2025-09-11T11:26:31.199Z",
+    "resourceId": "0.4.85"
+  },
+  {
+    "sensor": {
+      "id": "lumi1.54ef44666843",
+      "name": "201",
+      "location": "Floor 2",
+      "type": "motion"
+    },
+    "parameter": "battery",
+    "previousValue": "141",
+    "currentValue": "158",
+    "timestamp": "2025-09-11T11:26:33.056Z",
+    "resourceId": "0.4.85"
+  }
+]

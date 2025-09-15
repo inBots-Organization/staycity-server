@@ -1,0 +1,172 @@
+[
+  {
+    "id": "4227764",
+    "sensorId": "082B4",
+    "name": "Test Envirometal Senor 1",
+    "type": "S4V1",
+    "capabilities": [
+      {
+        "metricId": "1",
+        "name": "Temperature",
+        "unit": "°C"
+      },
+      {
+        "metricId": "2",
+        "name": "Humidity",
+        "unit": "%"
+      },
+      {
+        "metricId": "3",
+        "name": "CO₂",
+        "unit": "ppm"
+      },
+      {
+        "metricId": "4",
+        "name": "Atmospheric Pressure",
+        "unit": "hPa"
+      },
+      {
+        "metricId": "61",
+        "name": "RSSI",
+        "unit": "dBm"
+      },
+      {
+        "metricId": "62",
+        "name": "Battery voltage",
+        "unit": "%"
+      }
+    ],
+    "bases": [
+      "371015007943"
+    ],
+    "pairing": [
+      {
+        "base": "371015007943",
+        "paired": "2025-06-24T14:46:15Z"
+      }
+    ],
+    "_raw": {
+      "id": "4227764",
+      "sensorId": "082B4",
+      "name": "Test Envirometal Senor 1",
+      "type": "S4V1",
+      "skills": [
+        {
+          "metric": "1",
+          "active": true
+        },
+        {
+          "metric": "2",
+          "active": true
+        },
+        {
+          "metric": "3",
+          "active": true
+        },
+        {
+          "metric": "4",
+          "active": true
+        },
+        {
+          "metric": "61",
+          "active": true
+        },
+        {
+          "metric": "62",
+          "active": true
+        }
+      ],
+      "files": [
+        {
+          "name": "1st Floor As Built - HKR.jpg",
+          "href": "/api/v1/sensors/sensor/4227764/attachment/4555"
+        }
+      ],
+      "bases": [
+        "371015007943"
+      ],
+      "pairing": [
+        {
+          "base": "371015007943",
+          "paired": "2025-06-24T14:46:15Z"
+        }
+      ]
+    }
+  },
+  {
+    "id": "5250559",
+    "sensorId": "01DFF",
+    "name": "Test Power Sensor",
+    "type": "S5V17",
+    "capabilities": [
+      {
+        "metricId": "15",
+        "name": "Pulses",
+        "unit": "pulses"
+      },
+      {
+        "metricId": "16",
+        "name": "Pulses Cumulative",
+        "unit": "pulses"
+      },
+      {
+        "metricId": "61",
+        "name": "RSSI",
+        "unit": "dBm"
+      },
+      {
+        "metricId": "62",
+        "name": "Battery voltage",
+        "unit": "%"
+      }
+    ],
+    "bases": [
+      "371015007943"
+    ],
+    "pairing": [
+      {
+        "base": "371015007943",
+        "paired": "2025-06-24T15:17:22Z"
+      }
+    ],
+    "_raw": {
+      "id": "5250559",
+      "sensorId": "01DFF",
+      "name": "Test Power Sensor",
+      "type": "S5V17",
+      "skills": [
+        {
+          "metric": "15",
+          "active": true
+        },
+        {
+          "metric": "16",
+          "active": true
+        },
+        {
+          "metric": "61",
+          "active": true
+        },
+        {
+          "metric": "62",
+          "active": true
+        }
+      ],
+      "files": [
+        {
+          "name": "CP Hotel.jpeg",
+          "href": "/api/v1/sensors/sensor/5250559/attachment/4579"
+        }
+      ],
+      "bases": [
+        "371015007943"
+      ],
+      "pairing": [
+        {
+          "base": "371015007943",
+          "paired": "2025-06-24T15:17:22Z"
+        }
+      ]
+    }
+  }
+]

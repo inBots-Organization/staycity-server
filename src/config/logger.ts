@@ -1,6 +1,6 @@
 import winston from 'winston';
 
-const logLevel = process.env.LOG_LEVEL || 'info';
+const logLevel = process.env['LOG_LEVEL'] || 'info';
 
 export const logger = winston.createLogger({
   level: logLevel,
@@ -17,10 +17,12 @@ export const logger = winston.createLogger({
 });
 
 if (process.env.NODE_ENV !== 'production') {
-  logger.add(new winston.transports.Console({
-    format: winston.format.combine(
-      winston.format.colorize(),
-      winston.format.simple()
-    )
-  }));
+  logger.add(
+    new winston.transports.Console({
+      format: winston.format.combine(
+        winston.format.colorize(),
+        winston.format.simple()
+      ),
+    })
+  );
 }

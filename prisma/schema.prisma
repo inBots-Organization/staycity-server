@@ -61,8 +61,7 @@ model Role {
 }
 
 // ----------------------------------------------------
-// Properties module → Building → Floor → Room
-// (devices stored externally; only references kept here)
+// Properties module → Building → Floor → Room → Device
 // ----------------------------------------------------
 
 enum BuildingStatus {
@@ -93,16 +92,36 @@ enum Amenity {
   LAUNDRY
 }
 
+enum DeviceStatus {
+  ONLINE
+  OFFLINE
+  MAINTENANCE
+}
+
+/// Optional catalog of device types
+model DeviceType {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  description String?  @db.Text
+  devices     Device[]
+
+  @@map("device_types")
+}
+
 /// Top-level entity for a hotel/aparthotel building
 model Building {
-  id             String         @id @default(cuid())
-  name           String
-  slug           String         @unique
-  status         BuildingStatus @default(ACTIVE)
-  rating         Decimal?       @db.Decimal(2, 1)
-  monthlySavings Int            @default(0)
-  energyKwh      Decimal?       @db.Decimal(10, 1)
-  floorsCount    Int            @default(0)
+  id          String         @id @default(cuid())
+  name        String
+  address     String?
+  rating      Decimal?       @db.Decimal(2, 1)
+  noOfRooms   Int            @default(0)
+  status      BuildingStatus @default(ACTIVE)
+  
+  // Additional fields (keeping existing for backward compatibility)
+  slug           String  @unique
+  monthlySavings Int     @default(0)
+  energyKwh      Decimal? @db.Decimal(10, 1)
+  floorsCount    Int     @default(0)
 
   // Location & contact
   address1     String?
@@ -114,15 +133,12 @@ model Building {
   contactEmail String?
   contactPhone String?
 
-  // External device refs (array of objects)
-  // Default empty array; stored as JSONB in Postgres
-  externalDevices Json @default(dbgenerated("'[]'::jsonb"))
-
   // Relations
   amenities BuildingAmenity[]
   stats     BuildingStats?
   floors    Floor[]
   rooms     Room[]
+  devices   Device[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -161,10 +177,11 @@ model Floor {
   building   Building @relation(fields: [buildingId], references: [id])
   buildingId String   @map("propertyId")
 
-  name  String
-  level Int
-  rooms Room[]
-  note  String?
+  name    String
+  level   Int
+  rooms   Room[]
+  note    String?
+  devices Device[] // NEW
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -181,10 +198,12 @@ model Room {
   floor      Floor    @relation(fields: [floorId], references: [id])
   floorId    String
 
-  name     String
-  type     RoomType   @default(ROOM)
-  status   RoomStatus @default(AVAILABLE)
-  capacity Int        @default(2)
+  name       String
+  type       RoomType   @default(ROOM)
+  status     RoomStatus @default(AVAILABLE)
+  capacity   Int        @default(2)
+  deviceIds  String[]   @default([]) // Array of Aranet sensor IDs
+  devices    Device[]   // Prisma device references
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -192,4 +211,32 @@ model Room {
   @@index([buildingId])
   @@index([floorId])
   @@map("rooms")
+}
+
+// prisma/schema.prisma — inside model Device { ... }
+model Device {
+  id         String      @id @default(cuid())
+  building   Building    @relation(fields: [buildingId], references: [id])
+  buildingId String      @map("propertyId")
+  floor      Floor?      @relation(fields: [floorId], references: [id])
+  floorId    String?
+  room       Room?       @relation(fields: [roomId], references: [id])
+  roomId     String?
+  type       DeviceType? @relation(fields: [typeId], references: [id])
+  typeId     String?
+
+  name       String
+  externalId String?      @db.VarChar(255)
+  provider   String       @db.VarChar(64) // <— NEW
+  status     DeviceStatus @default(OFFLINE)
+  payload    Json?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([buildingId])
+  @@index([floorId])
+  @@index([roomId])
+  @@index([provider, externalId])
+  @@map("devices")
 }

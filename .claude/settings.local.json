@@ -2,7 +2,8 @@
   "permissions": {
     "allow": [
       "Bash(bun build:*)",
-      "Bash(bun run:*)"
+      "Bash(bun run:*)",
+      "WebFetch(domain:aranet.cloud)"
     ],
     "deny": []
   }

@@ -1,0 +1,27 @@
+{
+  "name": "aqara-sensor-detection",
+  "version": "1.0.0",
+  "description": "Comprehensive Aqara sensor detection and automation system",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "test": "node index.js test",
+    "webhook": "node index.js webhook",
+    "monitor": "node index.js monitor",
+    "status": "node index.js status",
+    "summary": "node index.js summary",
+    "auth": "node index.js auth",
+    "setup": "node index.js setup-webhook",
+    "scenes": "node index.js scene-test",
+    "actions": "node index.js actions",
+    "automation": "node index.js automation"
+  },
+  "keywords": ["aqara", "sensor", "automation", "smart-home", "webhook"],
+  "author": "Aqara Sensor Detection System",
+  "dependencies": {
+    "axios": "^1.11.0",
+    "crypto": "^1.0.1",
+    "dotenv": "^17.2.2",
+    "express": "^5.1.0"
+  }
+}

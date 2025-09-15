@@ -12,7 +12,9 @@ import { swaggerSpec } from '@config/swagger';
 import usersRoutes from './routes/users';
 import authRoutes from './routes/auth';
 import propertiesRoutes from './routes/properties';
-import devicesRoutes from './routes/devices';
+import buildingsRoutes from './routes/buildings';
+import floorsRoutes from './routes/floors';
+import roomsRoutes from './routes/rooms';
 
 const app = express();
 
@@ -92,7 +94,9 @@ app.get('/health', (_req, res) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/users', usersRoutes);
 app.use('/api/properties', propertiesRoutes);
-app.use('/api/devices', devicesRoutes);
+app.use('/api/buildings', buildingsRoutes);
+app.use('/api/floors', floorsRoutes);
+app.use('/api/rooms', roomsRoutes);
 
 // 404 handler
 app.use((_req, res) => {

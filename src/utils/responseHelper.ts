@@ -1,5 +1,5 @@
 import { Response } from 'express';
-import { ApiResponse } from '@types/index';
+import { ApiResponse } from '@/types';
 
 export const sendSuccessResponse = <T>(
   res: Response,
@@ -27,4 +27,23 @@ export const sendErrorResponse = (
     error,
   };
   return res.status(statusCode).json(response);
+};
+
+// Aliases for consistency
+export const responseSuccess = <T>(
+  res: Response,
+  message = 'Success',
+  data?: T,
+  statusCode = 200
+): Response => {
+  return sendSuccessResponse(res, data, message, statusCode);
+};
+
+export const responseError = (
+  res: Response,
+  message = 'Error occurred',
+  statusCode = 400,
+  error?: any
+): Response => {
+  return sendErrorResponse(res, message, statusCode, error);
 };

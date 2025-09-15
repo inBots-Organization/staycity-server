@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { logger } from '@config/logger';
-import { ApiResponse } from '@types/index';
+import { ApiResponse } from '../types';
 
 export const errorHandler = (
   error: any,
