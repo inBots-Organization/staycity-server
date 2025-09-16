@@ -3,7 +3,8 @@
     "allow": [
       "Bash(bun build:*)",
       "Bash(bun run:*)",
-      "WebFetch(domain:aranet.cloud)"
+      "WebFetch(domain:aranet.cloud)",
+      "Bash(bun:*)"
     ],
     "deny": []
   }

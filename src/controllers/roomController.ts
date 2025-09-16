@@ -267,3 +267,101 @@ export const removeDeviceFromRoom = async (
     responseError(res, 'Internal server error');
   }
 };
+
+export const linkDevicesToRoom = async (
+  req: Request<{ id: string }, any, { deviceIds: string[] }>,
+  res: Response
+): Promise<void> => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      responseError(res, 'Validation failed', 400, errors.array());
+      return;
+    }
+
+    const { id } = req.params;
+    if (!id) {
+      responseError(res, 'Room ID is required', 400);
+      return;
+    }
+
+    const { deviceIds } = req.body;
+    if (!Array.isArray(deviceIds) || deviceIds.length === 0) {
+      responseError(res, 'deviceIds must be a non-empty array', 400);
+      return;
+    }
+
+    const room = await RoomService.linkDevicesToRoom(id, deviceIds);
+    responseSuccess(res, 'Devices linked to room successfully', room);
+  } catch (error: any) {
+    if (error.message === 'Room not found') {
+      responseError(res, 'Room not found', 404);
+      return;
+    }
+    if (error.message.includes('not found or do not belong')) {
+      responseError(res, error.message, 400);
+      return;
+    }
+    responseError(res, 'Internal server error');
+  }
+};
+
+export const unlinkDevicesFromRoom = async (
+  req: Request<{ id: string }, any, { deviceIds: string[] }>,
+  res: Response
+): Promise<void> => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      responseError(res, 'Validation failed', 400, errors.array());
+      return;
+    }
+
+    const { id } = req.params;
+    if (!id) {
+      responseError(res, 'Room ID is required', 400);
+      return;
+    }
+
+    const { deviceIds } = req.body;
+    if (!Array.isArray(deviceIds) || deviceIds.length === 0) {
+      responseError(res, 'deviceIds must be a non-empty array', 400);
+      return;
+    }
+
+    const room = await RoomService.unlinkDevicesFromRoom(id, deviceIds);
+    responseSuccess(res, 'Devices unlinked from room successfully', room);
+  } catch (error: any) {
+    if (error.message === 'Room not found') {
+      responseError(res, 'Room not found', 404);
+      return;
+    }
+    if (error.message.includes('not found or do not belong')) {
+      responseError(res, error.message, 400);
+      return;
+    }
+    responseError(res, 'Internal server error');
+  }
+};
+
+export const getRoomDevices = async (
+  req: Request<{ id: string }>,
+  res: Response
+): Promise<void> => {
+  try {
+    const { id } = req.params;
+    if (!id) {
+      responseError(res, 'Room ID is required', 400);
+      return;
+    }
+
+    const devices = await RoomService.getRoomDevices(id);
+    responseSuccess(res, 'Room devices retrieved successfully', devices);
+  } catch (error: any) {
+    if (error.message === 'Room not found') {
+      responseError(res, 'Room not found', 404);
+      return;
+    }
+    responseError(res, 'Internal server error');
+  }
+};

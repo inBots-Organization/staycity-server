@@ -15,6 +15,9 @@ import propertiesRoutes from './routes/properties';
 import buildingsRoutes from './routes/buildings';
 import floorsRoutes from './routes/floors';
 import roomsRoutes from './routes/rooms';
+import devicesRoutes from './routes/devices';
+import analyticsRoutes from './routes/analytics';
+import aranetRoutes from './routes/aranet';
 
 const app = express();
 
@@ -36,7 +39,7 @@ const limiter = rateLimit({
     message: 'Too many requests from this IP, please try again later.',
   },
 });
-app.use(limiter);
+// app.use(limiter);
 
 // General middleware
 app.use(compression());
@@ -97,6 +100,9 @@ app.use('/api/properties', propertiesRoutes);
 app.use('/api/buildings', buildingsRoutes);
 app.use('/api/floors', floorsRoutes);
 app.use('/api/rooms', roomsRoutes);
+app.use('/api/devices', devicesRoutes);
+app.use('/api/analytics', analyticsRoutes);
+app.use('/api/aranet', aranetRoutes);
 
 // 404 handler
 app.use((_req, res) => {

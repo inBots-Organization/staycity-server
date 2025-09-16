@@ -1,51 +1,55 @@
-/*
- * Motion Sensor Real-time Monitor
- * ------------------------------
- * Monitors your motion sensors in real-time
- * Perfect for testing sensor responsiveness
+/**
+ * Aqara Clean Data Reader
+ * -----------------------
+ * Fetches CLEAN, normalized data for the readable devices (motion sensors).
+ * Other devices are returned with status: "unsupported".
+ *
+ * Usage:
+ *   REGION_DOMAIN=... APP_ID=... APP_KEY=... KEY_ID=... ACCESS_TOKEN=... node clean.js
  */
 
-require("dotenv").config();
-const axios = require("axios");
-const crypto = require("crypto");
+require('dotenv').config();
+const axios = require('axios');
+const crypto = require('crypto');
 
+/** ======== ENV & API ======== */
 const {
-  REGION_DOMAIN: REGION_DOMAIN_RAW = "",
+  REGION_DOMAIN: REGION_DOMAIN_RAW = '',
   APP_ID,
   APP_KEY,
   KEY_ID,
   ACCESS_TOKEN,
 } = process.env;
 
+if (!APP_ID || !APP_KEY || !KEY_ID || !ACCESS_TOKEN || !REGION_DOMAIN_RAW) {
+  console.error(
+    'Missing env vars. Need REGION_DOMAIN, APP_ID, APP_KEY, KEY_ID, ACCESS_TOKEN.'
+  );
+  process.exit(1);
+}
+
 const REGION_DOMAIN = (
   /^https?:\/\//i.test(REGION_DOMAIN_RAW)
     ? REGION_DOMAIN_RAW
     : `https://${REGION_DOMAIN_RAW}`
-).replace(/\/$/, "");
+).replace(/\/$/, '');
 const BASE_URL = `${REGION_DOMAIN}/v3.0/open/api`;
 
-// Your motion sensors
-const SENSORS = [
-  { id: "lumi1.54ef447baa7f", name: "301m", location: "Floor 3" },
-  { id: "lumi1.54ef44666843", name: "201", location: "Floor 2" }
-];
-
-const nonce = () => crypto.randomBytes(8).toString("hex");
-const md5 = (s) => crypto.createHash("md5").update(s).digest("hex");
+const nonce = () => crypto.randomBytes(8).toString('hex');
+const md5 = (s) => crypto.createHash('md5').update(s).digest('hex');
 
 function buildHeaders() {
   const now = Date.now().toString();
   const n = nonce();
   const headers = {
-    "Content-Type": "application/json",
+    'Content-Type': 'application/json',
     Accesstoken: ACCESS_TOKEN,
     Appid: APP_ID,
     Keyid: KEY_ID,
     Nonce: n,
     Time: now,
-    Lang: "en",
+    Lang: 'en',
   };
-  
   const signStr =
     Object.entries({
       Accesstoken: headers.Accesstoken,
@@ -56,131 +60,192 @@ function buildHeaders() {
     })
       .sort(([a], [b]) => a.localeCompare(b))
       .map(([k, v]) => `${k}=${v}`)
-      .join("&") + APP_KEY;
+      .join('&') + APP_KEY;
+
   headers.Sign = md5(signStr.toLowerCase());
-  
   return headers;
 }
 
 async function callApi(intent, data = {}) {
-  const body = { intent, data };
-  const headers = buildHeaders();
-
   try {
-    const res = await axios.post(BASE_URL, body, {
-      headers,
-      validateStatus: () => true,
-    });
-    
-    if (res.status !== 200 || res.data.code !== 0) {
-      throw new Error(`API Error ${res.data.code}: ${res.data.message}`);
+    const res = await axios.post(
+      BASE_URL,
+      { intent, data },
+      {
+        headers: buildHeaders(),
+        validateStatus: () => true,
+      }
+    );
+    if (res.status !== 200 || res.data?.code !== 0) {
+      throw new Error(
+        `API ${intent} failed: ${res.data?.code} ${res.data?.message || ''}`.trim()
+      );
     }
-    
     return res.data.result;
-  } catch (err) {
-    console.error("❌ API Error:", err.message);
-    return null;
+  } catch (e) {
+    throw new Error(e.message || String(e));
   }
 }
 
-async function getSensorData() {
-  const sensorIds = SENSORS.map(s => ({ subjectId: s.id }));
-  return await callApi("query.resource.value", { resources: sensorIds });
+/** ======== YOUR DEVICES ========
+ * Keep all 6 so output includes unsupported ones too.
+ */
+const DEVICES = [
+  // hubs (not cleanly readable; will be marked unsupported)
+  {
+    id: 'lumi1.54ef4474a7be',
+    name: 'Exch Floor 2',
+    location: 'Floor 2',
+    model: 'lumi.gateway.agl004',
+    type: 'hub',
+  },
+  {
+    id: 'lumi1.54ef447e68c6',
+    name: 'Exch Floor 3',
+    location: 'Floor 3',
+    model: 'lumi.gateway.agl004',
+    type: 'hub',
+  },
+
+  // matter devices (not readable via Aqara Cloud in your account; will be marked unsupported)
+  {
+    id: 'matt.685618ce136bcf6fc6add000',
+    name: 'DR201',
+    location: 'Floor 2',
+    model: 'aqara.matter.4447_8194',
+    type: 'sensor',
+  },
+  {
+    id: 'matt.685618ce138abbe8bd043000',
+    name: 'SW201',
+    location: 'Floor 2',
+    model: 'aqara.matter.4897_2',
+    type: 'switch',
+  },
+
+  // motion sensors (fully readable)
+  {
+    id: 'lumi1.54ef447baa7f',
+    name: '301m',
+    location: 'Floor 3',
+    model: 'lumi.motion.agl001',
+    type: 'motion',
+  },
+  {
+    id: 'lumi1.54ef44666843',
+    name: '201',
+    location: 'Floor 2',
+    model: 'lumi.motion.agl001',
+    type: 'motion',
+  },
+];
+
+/** Only query the readable motion sensors */
+const READABLE_IDS = new Set(
+  DEVICES.filter((d) => d.type === 'motion').map((d) => d.id)
+);
+
+/** Resource IDs for motion model (verified by your dumps) */
+const RID = {
+  MOTION: '3.51.85',
+  BATTERY: '0.4.85',
+  RSSI: '8.0.2116',
+  LUX: '13.27.85',
+  TEMP_C: '8.0.2026',
+};
+
+/** Helpers */
+function sanitizeTempC(val) {
+  if (val === undefined || val === null || val === '') return null;
+  const n = Number(val);
+  if (!Number.isFinite(n)) return null;
+  // Filter obviously bogus values you saw (-29 / -35)
+  if (n < -20 || n > 60) return null;
+  return n;
 }
 
-function parseSensorData(values, sensor) {
-  const sensorValues = values.filter(v => v.subjectId === sensor.id);
-  
-  return {
-    motion: sensorValues.find(v => v.resourceId === "3.51.85"),
-    battery: sensorValues.find(v => v.resourceId === "0.4.85"),
-    signal: sensorValues.find(v => v.resourceId === "8.0.2116"),
-    light: sensorValues.find(v => v.resourceId === "13.27.85"),
-    temperature: sensorValues.find(v => v.resourceId === "8.0.2026")
-  };
+function toBool01(v) {
+  if (v === undefined || v === null || v === '') return null;
+  const n = Number(v);
+  if (!Number.isFinite(n)) return null;
+  return n === 1;
 }
 
-function displayStatus(sensor, data) {
-  const motion = data.motion?.value == 1 ? "🟢 MOTION" : "🔴 Clear";
-  const battery = data.battery ? `${data.battery.value}%` : "N/A";
-  const signal = data.signal ? `${data.signal.value}dBm` : "N/A";
-  const light = data.light ? `${data.light.value}lux` : "N/A";
-  const temp = data.temperature ? `${data.temperature.value}°C` : "N/A";
-  
-  return `🏠 ${sensor.name} (${sensor.location}) | ${motion} | 🔋${battery} | 📶${signal} | 💡${light} | 🌡️${temp}`;
+function toNum(v) {
+  if (v === undefined || v === null || v === '') return null;
+  const n = Number(v);
+  return Number.isFinite(n) ? n : null;
 }
 
-async function monitorMotionSensors() {
-  console.log("🚶 Motion Sensor Monitor Started");
-  console.log("=".repeat(50));
-  console.log("Press Ctrl+C to stop monitoring\n");
-  
-  let lastStates = {};
-  
-  const monitor = async () => {
-    try {
-      const values = await getSensorData();
-      if (!values) return;
-      
-      console.log(`⏰ ${new Date().toLocaleTimeString()}`);
-      
-      SENSORS.forEach(sensor => {
-        const data = parseSensorData(values, sensor);
-        const status = displayStatus(sensor, data);
-        console.log(status);
-        
-        // Detect state changes
-        const currentMotion = data.motion?.value == 1;
-        const lastMotion = lastStates[sensor.id];
-        
-        if (lastMotion !== undefined && lastMotion !== currentMotion) {
-          if (currentMotion) {
-            console.log(`🚨 MOTION TRIGGERED: ${sensor.name} (${sensor.location})`);
-          } else {
-            console.log(`😴 Motion cleared: ${sensor.name} (${sensor.location})`);
-          }
-        }
-        
-        lastStates[sensor.id] = currentMotion;
-      });
-      
-      console.log("-".repeat(50));
-      
-    } catch (error) {
-      console.error("Monitor error:", error.message);
+/** Build {subjectId -> {rid:value}} from a mixed values array */
+function indexValues(rows) {
+  const bySubject = {};
+  for (const r of rows || []) {
+    if (!bySubject[r.subjectId]) bySubject[r.subjectId] = {};
+    // If duplicates exist, last one wins
+    bySubject[r.subjectId][r.resourceId] = r.value;
+  }
+  return bySubject;
+}
+
+/** Fetch & return CLEAN data */
+async function getCleanData() {
+  // 1) Query only readable subjects
+  const resources = Array.from(READABLE_IDS).map((id) => ({ subjectId: id }));
+  const result = await callApi('query.resource.value', { resources });
+
+  const rows = Array.isArray(result)
+    ? result
+    : Array.isArray(result?.values)
+      ? result.values
+      : [];
+  const map = indexValues(rows);
+
+  // 2) Construct clean device outputs
+  const devices = DEVICES.map((d) => {
+    if (!READABLE_IDS.has(d.id)) {
+      return {
+        id: d.id,
+        name: d.name,
+        location: d.location,
+        type: d.type,
+        model: d.model,
+        status: 'unsupported', // not cleanly readable via Aqara Cloud for your account
+        data: null,
+      };
     }
-    
-    setTimeout(monitor, 3000); // Check every 3 seconds
-  };
-  
-  monitor();
-}
 
-// Test single read first
-async function testSensors() {
-  console.log("🔍 Testing sensor connectivity...");
-  
-  const values = await getSensorData();
-  if (!values) {
-    console.log("❌ Cannot connect to sensors");
-    return false;
-  }
-  
-  console.log("✅ Sensors connected successfully!\n");
-  
-  SENSORS.forEach(sensor => {
-    const data = parseSensorData(values, sensor);
-    console.log(displayStatus(sensor, data));
+    const ridMap = map[d.id] || {};
+    const motion = toBool01(ridMap[RID.MOTION]);
+    const battery = toNum(ridMap[RID.BATTERY]);
+    const rssi = toNum(ridMap[RID.RSSI]);
+    const lux = toNum(ridMap[RID.LUX]);
+    const temperatureC = sanitizeTempC(ridMap[RID.TEMP_C]);
+
+    return {
+      id: d.id,
+      name: d.name,
+      location: d.location,
+      type: d.type,
+      model: d.model,
+      status: 'ok',
+      data: { motion, battery, rssi, lux, temperatureC },
+    };
   });
-  
-  console.log();
-  return true;
+
+  return {
+    timestamp: new Date().toISOString(),
+    devices,
+  };
 }
 
-// Main execution
+/** CLI */
 (async () => {
-  const connected = await testSensors();
-  if (connected) {
-    await monitorMotionSensors();
+  try {
+    const payload = await getCleanData();
+    console.log(JSON.stringify(payload, null, 2));
+  } catch (e) {
+    console.error('❌ Error:', e.message);
+    process.exit(1);
   }
 })();

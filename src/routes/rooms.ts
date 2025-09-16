@@ -644,4 +644,140 @@ router.post('/:id/devices', validateId, validateDeviceIds, roomController.addDev
  */
 router.delete('/:id/devices', validateId, validateDeviceIds, roomController.removeDeviceFromRoom);
 
+/**
+ * @swagger
+ * /api/rooms/{id}/devices:
+ *   get:
+ *     summary: Get room devices
+ *     tags: [Rooms]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Room ID
+ *     responses:
+ *       200:
+ *         description: Room devices retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 message:
+ *                   type: string
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     $ref: '#/components/schemas/Device'
+ *       404:
+ *         description: Room not found
+ */
+router.get('/:id/devices', validateId, roomController.getRoomDevices);
+
+/**
+ * @swagger
+ * /api/rooms/{id}/devices/link:
+ *   post:
+ *     summary: Link devices to room using relations
+ *     tags: [Rooms]
+ *     description: Links devices to a room using Prisma relations. Devices must belong to the same building as the room.
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Room ID
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - deviceIds
+ *             properties:
+ *               deviceIds:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                 minItems: 1
+ *                 description: Array of device IDs to link to the room
+ *                 example: ["cm123abc", "cm456def"]
+ *     responses:
+ *       200:
+ *         description: Devices linked to room successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 message:
+ *                   type: string
+ *                 data:
+ *                   $ref: '#/components/schemas/RoomWithDevices'
+ *       400:
+ *         description: Some devices not found or do not belong to the same building
+ *       404:
+ *         description: Room not found
+ */
+router.post('/:id/devices/link', validateId, validateDeviceIds, roomController.linkDevicesToRoom);
+
+/**
+ * @swagger
+ * /api/rooms/{id}/devices/unlink:
+ *   post:
+ *     summary: Unlink devices from room using relations
+ *     tags: [Rooms]
+ *     description: Unlinks devices from a room using Prisma relations. Only devices that belong to this room will be unlinked.
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Room ID
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - deviceIds
+ *             properties:
+ *               deviceIds:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                 minItems: 1
+ *                 description: Array of device IDs to unlink from the room
+ *                 example: ["cm123abc", "cm456def"]
+ *     responses:
+ *       200:
+ *         description: Devices unlinked from room successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 message:
+ *                   type: string
+ *                 data:
+ *                   $ref: '#/components/schemas/RoomWithDevices'
+ *       400:
+ *         description: Some devices not found or do not belong to this room
+ *       404:
+ *         description: Room not found
+ */
+router.post('/:id/devices/unlink', validateId, validateDeviceIds, roomController.unlinkDevicesFromRoom);
+
 export default router;

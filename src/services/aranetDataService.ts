@@ -137,4 +137,54 @@ export default class AranetDataService {
       .filter((result) => result.status === 'fulfilled')
       .map((result) => (result as PromiseFulfilledResult<SensorData>).value);
   }
+
+  async getSensorHistory(
+    sensorId: string,
+    metric: string,
+    from: string,
+    to: string,
+    limit: string = '10000'
+  ): Promise<{ readings: SensorReading[]; self?: string }> {
+    const data = await this.makeRequest('/telemetry/history', {
+      sensor: sensorId,
+      metric,
+      from,
+      to,
+      limit,
+    });
+
+    const unitCache = new Map<string, { name: string; precision: number }>();
+
+    const metricNames: Record<string, string> = {
+      '1': 'Temperature',
+      '2': 'Humidity',
+      '3': 'CO₂',
+      '4': 'Atmospheric Pressure',
+      '61': 'RSSI',
+      '62': 'Battery voltage',
+    };
+
+    const processedReadings: SensorReading[] = await Promise.all(
+      (data.readings || []).map(async (reading: any) => {
+        let unitDetails = unitCache.get(reading.unit);
+        if (!unitDetails) {
+          unitDetails = await this.getUnitDetails(reading.unit);
+          unitCache.set(reading.unit, unitDetails);
+        }
+
+        return {
+          metricId: reading.metric,
+          metricName: metricNames[reading.metric] || `Metric ${reading.metric}`,
+          value: reading.value,
+          unit: unitDetails.name,
+          timestamp: reading.time,
+        } as SensorReading;
+      })
+    );
+
+    return {
+      readings: processedReadings,
+      self: data.self,
+    };
+  }
 }

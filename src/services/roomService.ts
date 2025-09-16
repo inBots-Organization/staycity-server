@@ -1,6 +1,7 @@
 import { prisma } from '../config/prisma';
 import { RoomType, RoomStatus } from '../generated/prisma';
 import AranetDataService, { SensorData } from './aranetDataService';
+import AqaraDataService from './aqaraDataService';
 
 export interface CreateRoomData {
   buildingId: string;
@@ -31,6 +32,7 @@ export interface ListRoomsParams {
 
 export class RoomService {
   private static aranetService = new AranetDataService();
+  private static aqaraService = new AqaraDataService();
 
   static async create(data: CreateRoomData) {
     // Verify floor exists and belongs to building
@@ -147,6 +149,9 @@ export class RoomService {
         floor: {
           select: { id: true, name: true, level: true },
         },
+        devices: {
+          select: { id: true, externalId: true, provider: true, name: true },
+        },
       },
     });
 
@@ -154,17 +159,46 @@ export class RoomService {
       return null;
     }
 
-    // Fetch device metrics for each sensor in the room
+    // Group devices by provider
+    const aranetDevices = room.devices.filter((d) => d.provider === 'aranet');
+    const aqaraDevices = room.devices.filter((d) => d.provider === 'aqara');
+
+    // Fetch device metrics from both providers
     const deviceMetrics: SensorData[] = [];
-    if (room.deviceIds && room.deviceIds.length > 0) {
+
+    // Fetch Aranet data
+    if (aranetDevices.length > 0) {
       try {
-        const sensorDataList = await this.aranetService.getMultipleSensorsData(
-          room.deviceIds
-        );
-        deviceMetrics.push(...sensorDataList);
+        const aranetIds = [
+          ...room.deviceIds, // Keep backward compatibility with existing deviceIds array
+          ...(aranetDevices
+            .map((d) => d.externalId)
+            .filter(Boolean) as string[]),
+        ];
+
+        if (aranetIds.length > 0) {
+          const aranetDataList =
+            await this.aranetService.getMultipleSensorsData(aranetIds);
+          deviceMetrics.push(...aranetDataList);
+        }
       } catch (error) {
-        console.error('Error fetching sensor data:', error);
-        // Continue without sensor data rather than failing completely
+        console.error('Error fetching Aranet sensor data:', error);
+      }
+    }
+
+    // Fetch Aqara data
+    if (aqaraDevices.length > 0) {
+      try {
+        const aqaraIds = aqaraDevices
+          .map((d) => d.externalId)
+          .filter(Boolean) as string[];
+        if (aqaraIds.length > 0) {
+          const aqaraDataList =
+            await this.aqaraService.getMultipleSensorsData(aqaraIds);
+          deviceMetrics.push(...aqaraDataList);
+        }
+      } catch (error) {
+        console.error('Error fetching Aqara sensor data:', error);
       }
     }
 
@@ -304,6 +338,126 @@ export class RoomService {
         },
         floor: {
           select: { id: true, name: true, level: true },
+        },
+      },
+    });
+  }
+
+  static async linkDevicesToRoom(roomId: string, deviceIds: string[]) {
+    const room = await prisma.room.findUnique({
+      where: { id: roomId },
+      select: { id: true, buildingId: true, floorId: true },
+    });
+
+    if (!room) {
+      throw new Error('Room not found');
+    }
+
+    // Verify devices exist and belong to the same building
+    const devices = await prisma.device.findMany({
+      where: {
+        id: { in: deviceIds },
+        buildingId: room.buildingId,
+      },
+      select: { id: true },
+    });
+
+    if (devices.length !== deviceIds.length) {
+      throw new Error(
+        'Some devices not found or do not belong to the same building as the room'
+      );
+    }
+
+    // Update devices to link them to the room
+    await prisma.device.updateMany({
+      where: { id: { in: deviceIds } },
+      data: {
+        roomId: roomId,
+        floorId: room.floorId, // Also update floor to match room's floor
+      },
+    });
+
+    // Return updated room with devices
+    return prisma.room.findUnique({
+      where: { id: roomId },
+      include: {
+        building: {
+          select: { id: true, name: true },
+        },
+        floor: {
+          select: { id: true, name: true, level: true },
+        },
+        devices: true,
+      },
+    });
+  }
+
+  static async unlinkDevicesFromRoom(roomId: string, deviceIds: string[]) {
+    const room = await prisma.room.findUnique({
+      where: { id: roomId },
+      select: { id: true },
+    });
+
+    if (!room) {
+      throw new Error('Room not found');
+    }
+
+    // Verify devices belong to this room
+    const devices = await prisma.device.findMany({
+      where: {
+        id: { in: deviceIds },
+        roomId: roomId,
+      },
+      select: { id: true },
+    });
+
+    if (devices.length !== deviceIds.length) {
+      throw new Error('Some devices not found or do not belong to this room');
+    }
+
+    // Update devices to unlink them from the room
+    await prisma.device.updateMany({
+      where: { id: { in: deviceIds } },
+      data: { roomId: null },
+    });
+
+    // Return updated room with devices
+    return prisma.room.findUnique({
+      where: { id: roomId },
+      include: {
+        building: {
+          select: { id: true, name: true },
+        },
+        floor: {
+          select: { id: true, name: true, level: true },
+        },
+        devices: true,
+      },
+    });
+  }
+
+  static async getRoomDevices(roomId: string) {
+    const room = await prisma.room.findUnique({
+      where: { id: roomId },
+      select: { id: true },
+    });
+
+    if (!room) {
+      throw new Error('Room not found');
+    }
+
+    return prisma.device.findMany({
+      where: { roomId },
+      orderBy: [{ name: 'asc' }],
+      include: {
+        building: {
+          select: { id: true, name: true },
+        },
+        floor: {
+          select: { id: true, name: true, level: true },
+        },
+        room: {
+          select: { id: true, name: true },
         },
       },
     });
