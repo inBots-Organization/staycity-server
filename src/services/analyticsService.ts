@@ -241,6 +241,7 @@ export class AnalyticsService {
     }
 
     // Calculate overall summary
+    
     const summary = {
       totalBuildings: processedBuildings.length,
       totalFloors: processedBuildings.reduce((sum, building) => sum + building.totalFloors, 0),
@@ -253,7 +254,7 @@ export class AnalyticsService {
       aranetDevices: this.countDevicesByProvider(processedBuildings, 'aranet'),
       aqaraDevices: this.countDevicesByProvider(processedBuildings, 'aqara'),
     };
-
+    console.log("summary",summary)
     return {
       timestamp,
       buildings: processedBuildings,

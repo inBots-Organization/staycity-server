@@ -157,6 +157,7 @@ export default class AqaraDataService {
 
   async getAqaraData(): Promise<AqaraResponse> {
     const resources = Array.from(this.READABLE_IDS).map(id => ({ subjectId: id }));
+   
     const result = await this.callApi('query.resource.value', { resources });
 
     const rows = Array.isArray(result) ? result : Array.isArray(result?.values) ? result.values : [];
@@ -207,7 +208,7 @@ export default class AqaraDataService {
 
     const aqaraData = await this.getAqaraData();
     const deviceData = aqaraData.devices.find(d => d.id === sensorId);
-
+    console.log("deviceData",deviceData)
     if (!deviceData || deviceData.status !== 'ok' || !deviceData.data) {
       return {
         sensorId,
@@ -219,7 +220,7 @@ export default class AqaraDataService {
     }
 
     const readings: SensorReading[] = [];
-
+   
     if (deviceData.data.motion !== null) {
       readings.push({
         metricId: 'motion',
@@ -283,7 +284,7 @@ export default class AqaraDataService {
     const results = await Promise.allSettled(
       sensorIds.map(id => this.getSensorData(id))
     );
-
+    console.log("results",results)
     return results
       .filter(result => result.status === 'fulfilled')
       .map(result => (result as PromiseFulfilledResult<SensorData>).value);

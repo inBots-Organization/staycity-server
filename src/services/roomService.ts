@@ -188,6 +188,7 @@ export class RoomService {
 
     // Fetch Aqara data
     if (aqaraDevices.length > 0) {
+      
       try {
         const aqaraIds = aqaraDevices
           .map((d) => d.externalId)
@@ -195,13 +196,15 @@ export class RoomService {
         if (aqaraIds.length > 0) {
           const aqaraDataList =
             await this.aqaraService.getMultipleSensorsData(aqaraIds);
+            console.log("aqaraDataList",aqaraDataList)
           deviceMetrics.push(...aqaraDataList);
         }
+
       } catch (error) {
         console.error('Error fetching Aqara sensor data:', error);
       }
     }
-
+   
     return {
       ...room,
       deviceMetrics,
