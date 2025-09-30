@@ -1,6 +1,6 @@
 import { prisma } from '../config/prisma';
 import { RoomType, RoomStatus } from '../generated/prisma';
-import AranetDataService, { SensorData } from './aranetDataService';
+import AranetDataService, { SensorData, SensorDevice } from './aranetDataService';
 import AqaraDataService from './aqaraDataService';
 
 export interface CreateRoomData {
@@ -150,7 +150,7 @@ export class RoomService {
           select: { id: true, name: true, level: true },
         },
         devices: {
-          select: { id: true, externalId: true, provider: true, name: true },
+          select: { id: true, externalId: true, provider: true, name: true,part: true },
         },
       },
     });
@@ -161,6 +161,7 @@ export class RoomService {
 
     // Group devices by provider
     const aranetDevices = room.devices.filter((d) => d.provider === 'aranet');
+    console.log("aranetDevices",aranetDevices)
     const aqaraDevices = room.devices.filter((d) => d.provider === 'aqara');
 
     // Fetch device metrics from both providers
@@ -169,16 +170,19 @@ export class RoomService {
     // Fetch Aranet data
     if (aranetDevices.length > 0) {
       try {
-        const aranetIds = [
-          ...room.deviceIds, // Keep backward compatibility with existing deviceIds array
-          ...(aranetDevices
-            .map((d) => d.externalId)
-            .filter(Boolean) as string[]),
+        const aranetSensors: SensorDevice[] = [
+          // Keep backward compatibility with existing deviceIds array
+          ...room.deviceIds.map(id => ({ id })),
+          // Add devices with part information
+          ...aranetDevices
+            .filter((d) => d.externalId)
+            .map((d) => ({ id: d.externalId!, part: d.part }))
         ];
+        console.log("aranetSensors", aranetSensors)
 
-        if (aranetIds.length > 0) {
+        if (aranetSensors.length > 0) {
           const aranetDataList =
-            await this.aranetService.getMultipleSensorsData(aranetIds);
+            await this.aranetService.getMultipleSensorsData(aranetSensors);
           deviceMetrics.push(...aranetDataList);
         }
       } catch (error) {
@@ -190,12 +194,12 @@ export class RoomService {
     if (aqaraDevices.length > 0) {
       
       try {
-        const aqaraIds = aqaraDevices
-          .map((d) => d.externalId)
-          .filter(Boolean) as string[];
-        if (aqaraIds.length > 0) {
+        const aqaraSensors: SensorDevice[] =[ ...room.deviceIds.map(id => ({ id })),...aqaraDevices
+          .filter((d) => d.externalId)
+          .map((d) => ({ id: d.externalId!, part: d.part }))];
+        if (aqaraSensors.length > 0) {
           const aqaraDataList =
-            await this.aqaraService.getMultipleSensorsData(aqaraIds);
+            await this.aqaraService.getMultipleSensorsData(aqaraSensors);
             console.log("aqaraDataList",aqaraDataList)
           deviceMetrics.push(...aqaraDataList);
         }

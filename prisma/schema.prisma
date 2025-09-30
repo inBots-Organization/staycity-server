@@ -230,7 +230,7 @@ model Device {
   provider   String       @db.VarChar(64) // <— NEW
   status     DeviceStatus @default(OFFLINE)
   payload    Json?
-
+  part       String?      @db.VarChar(64)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -239,4 +239,42 @@ model Device {
   @@index([roomId])
   @@index([provider, externalId])
   @@map("devices")
+}
+
+model SystemSettings {
+  id        String   @id @default(cuid())
+
+  // ⚡ Energy Levels
+  lowMaxKw      Int
+  mediumMaxKw   Int
+  highMaxKw     Int
+
+  // 🔥 Heatmap & Alerts
+  showEnergy      Boolean @default(true)
+  showCO2         Boolean @default(true)
+  showTemperature Boolean @default(true)
+
+  // 🫁 CO₂ Thresholds
+  co2WarningPpm  Int
+  co2CriticalPpm Int
+  co2DebounceSec Int
+
+  // 🌡️ Temperature Thresholds
+  tempUnit        String   @default("Celsius") // أو نعمل enum
+  tempHighWarning Int
+  tempHighCritical Int
+  tempLowWarning  Int
+  tempLowCritical Int
+  tempDebounceSec Int
+
+  // ⚙️ Automation Logic & Timers
+  entryConfirmedSec     Int
+  absenceTimeMin        Int
+  doorOnlyTimeoutMin    Int
+  sensorBatteryTimeoutH Int
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("system_settings")
 }

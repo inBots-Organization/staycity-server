@@ -6,12 +6,18 @@ export interface SensorReading {
   timestamp: string;
 }
 
+export interface SensorDevice {
+  id: string;
+  part?: string;
+}
+
 export interface SensorData {
   sensorId: string;
   sensorName: string;
   sensorType: string;
   readings: SensorReading[];
   lastUpdate: string;
+  part?: string;
 }
 
 export default class AranetDataService {
@@ -84,7 +90,7 @@ export default class AranetDataService {
     };
   }
 
-  async getSensorData(sensorId: string): Promise<SensorData> {
+  async getSensorData(sensorId: string, part?: string): Promise<SensorData> {
     const { metrics, sensorName, sensorType } =
       await this.getSensorMetrics(sensorId);
 
@@ -125,12 +131,13 @@ export default class AranetDataService {
       sensorType,
       readings: processedReadings,
       lastUpdate: new Date().toISOString(),
+      ...(part && { part }),
     };
   }
 
-  async getMultipleSensorsData(sensorIds: string[]): Promise<SensorData[]> {
+  async getMultipleSensorsData(sensors: SensorDevice[]): Promise<SensorData[]> {
     const results = await Promise.allSettled(
-      sensorIds.map((id) => this.getSensorData(id))
+      sensors.map((sensor) => this.getSensorData(sensor.id, sensor.part))
     );
 
     return results

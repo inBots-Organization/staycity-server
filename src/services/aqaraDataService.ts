@@ -1,4 +1,4 @@
-import { SensorReading, SensorData } from './aranetDataService';
+import { SensorReading, SensorData, SensorDevice } from './aranetDataService';
 
 interface AqaraDevice {
   id: string;
@@ -200,7 +200,7 @@ export default class AqaraDataService {
     };
   }
 
-  async getSensorData(sensorId: string): Promise<SensorData> {
+  async getSensorData(sensorId: string, part?: string): Promise<SensorData> {
     const device = this.DEVICES.find(d => d.id === sensorId);
     if (!device) {
       throw new Error(`Device with ID ${sensorId} not found`);
@@ -216,6 +216,7 @@ export default class AqaraDataService {
         sensorType: device.type,
         readings: [],
         lastUpdate: new Date().toISOString(),
+        part,
       };
     }
 
@@ -280,11 +281,11 @@ export default class AqaraDataService {
     };
   }
 
-  async getMultipleSensorsData(sensorIds: string[]): Promise<SensorData[]> {
+  async getMultipleSensorsData(sensors: SensorDevice[]): Promise<SensorData[]> {
     const results = await Promise.allSettled(
-      sensorIds.map(id => this.getSensorData(id))
+      sensors.map(sensor => this.getSensorData(sensor.id, sensor.part))
     );
-    console.log("results",results)
+    console.log("aqara results",results)
     return results
       .filter(result => result.status === 'fulfilled')
       .map(result => (result as PromiseFulfilledResult<SensorData>).value);

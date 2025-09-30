@@ -18,6 +18,7 @@ import roomsRoutes from './routes/rooms';
 import devicesRoutes from './routes/devices';
 import analyticsRoutes from './routes/analytics';
 import aranetRoutes from './routes/aranet';
+import sittingsRoutes from './routes/sittings';
 
 const app = express();
 
@@ -103,6 +104,8 @@ app.use('/api/rooms', roomsRoutes);
 app.use('/api/devices', devicesRoutes);
 app.use('/api/analytics', analyticsRoutes);
 app.use('/api/aranet', aranetRoutes);
+app.use('/api/sittings', sittingsRoutes);
+
 
 // 404 handler
 app.use((_req, res) => {

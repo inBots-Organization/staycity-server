@@ -1,6 +1,6 @@
 import { prisma } from '../config/prisma';
 import { BuildingStatus, RoomType, RoomStatus, DeviceStatus } from '../generated/prisma';
-import AranetDataService, { SensorData } from './aranetDataService';
+import AranetDataService, { SensorData, SensorDevice } from './aranetDataService';
 import AqaraDataService from './aqaraDataService';
 
 interface DeviceWithMetrics {
@@ -119,14 +119,16 @@ export class AnalyticsService {
           let aranetSensorData: SensorData[] = [];
           if (aranetDevices.length > 0) {
             try {
-              // Include both deviceIds array (legacy) and device externalIds
-              const aranetIds = [
-                ...room.deviceIds, // Legacy deviceIds array
-                ...aranetDevices.map(d => d.externalId).filter(Boolean) as string[]
+              // Include both deviceIds array (legacy) and device externalIds with part info
+              const aranetSensors: SensorDevice[] = [
+                ...room.deviceIds.map(id => ({ id })), // Legacy deviceIds array
+                ...aranetDevices
+                  .filter(d => d.externalId)
+                  .map(d => ({ id: d.externalId!, part: d.part }))
               ];
-              
-              if (aranetIds.length > 0) {
-                aranetSensorData = await this.aranetService.getMultipleSensorsData(aranetIds);
+
+              if (aranetSensors.length > 0) {
+                aranetSensorData = await this.aranetService.getMultipleSensorsData(aranetSensors);
               }
             } catch (error) {
               console.error(`Error fetching Aranet data for room ${room.name}:`, error);
