@@ -1,12 +1,13 @@
 import axios, { AxiosResponse } from "axios";
 import crypto from "crypto";
+require("dotenv").config();
 
 // -------- Config --------
 const REGION_DOMAIN_RAW = "open-ger.aqara.com";
-const APP_ID = "138794703004083814426ba5";
-const APP_KEY = "qcpn2fk3z3lgp5vteodkpt8h2oirnvil";
-const KEY_ID = "K.1387947030166667268";
-const ACCESS_TOKEN = "f5ef12f1a8bbd92953c527411b963397";
+const APP_ID: string = process.env.APP_ID as string;
+const APP_KEY: string = process.env.APP_KEY as string;
+const KEY_ID: string = process.env.KEY_ID as string;
+const ACCESS_TOKEN: string = process.env.AQARA_ACCESS_TOKEN as string;
 // const SENSOR_ID = "lumi1.54ef447baa7f"; // Room 201b
 
 const REGION_DOMAIN = (

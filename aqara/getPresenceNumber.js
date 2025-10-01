@@ -1,11 +1,12 @@
 import axios from "axios";
 import crypto from "crypto";
+require("dotenv").config();
 
 const REGION_DOMAIN_RAW = "open-ger.aqara.com";
-const APP_ID = "138794703004083814426ba5";
-const APP_KEY = "qcpn2fk3z3lgp5vteodkpt8h2oirnvil";
-const KEY_ID = "K.1387947030166667268";
-const ACCESS_TOKEN = "f5ef12f1a8bbd92953c527411b963397";
+const APP_ID = process.env.APP_ID;
+const APP_KEY = process.env.APP_KEY;
+const KEY_ID = process.env.KEY_ID;
+const ACCESS_TOKEN = process.env.ACCESS_TOKEN;
 
 const REGION_DOMAIN = (
   /^https?:\/\//i.test(REGION_DOMAIN_RAW)
