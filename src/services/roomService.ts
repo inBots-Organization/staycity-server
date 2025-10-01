@@ -2,6 +2,7 @@ import { prisma } from '../config/prisma';
 import { RoomType, RoomStatus } from '../generated/prisma';
 import AranetDataService, { SensorData, SensorDevice } from './aranetDataService';
 import AqaraDataService from './aqaraDataService';
+import {getCurrentPresence}from "@services/getPrecenceNumber"
 
 export interface CreateRoomData {
   buildingId: string;
@@ -198,8 +199,16 @@ export class RoomService {
           .filter((d) => d.externalId)
           .map((d) => ({ id: d.externalId!, part: d.part }))];
         if (aqaraSensors.length > 0) {
-          const aqaraDataList =
+          let aqaraDataList =
             await this.aqaraService.getMultipleSensorsData(aqaraSensors);
+           aqaraDataList= await Promise.all(aqaraDataList.map(async d=>{
+              console.log(d.sensorId)
+      if (d.sensorType==="motion"){
+        const presence = await getCurrentPresence(d.sensorId);
+        d.motionNumber=presence
+        return d
+      }
+    }))
             console.log("aqaraDataList",aqaraDataList)
           deviceMetrics.push(...aqaraDataList);
         }

@@ -1,4 +1,5 @@
 import { SensorReading, SensorData, SensorDevice } from './aranetDataService';
+import {getCurrentPresence} from "@/services/getPrecenceNumber"
 
 interface AqaraDevice {
   id: string;
@@ -157,6 +158,7 @@ export default class AqaraDataService {
 
   async getAqaraData(): Promise<AqaraResponse> {
     const resources = Array.from(this.READABLE_IDS).map(id => ({ subjectId: id }));
+    console.log("resources",resources)
    
     const result = await this.callApi('query.resource.value', { resources });
 
@@ -286,6 +288,8 @@ export default class AqaraDataService {
       sensors.map(sensor => this.getSensorData(sensor.id, sensor.part))
     );
     console.log("aqara results",results)
+    
+    
     return results
       .filter(result => result.status === 'fulfilled')
       .map(result => (result as PromiseFulfilledResult<SensorData>).value);
