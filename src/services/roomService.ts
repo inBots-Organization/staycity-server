@@ -198,6 +198,7 @@ export class RoomService {
         const aqaraSensors: SensorDevice[] =[ ...room.deviceIds.map(id => ({ id })),...aqaraDevices
           .filter((d) => d.externalId)
           .map((d) => ({ id: d.externalId!, part: d.part }))];
+        
         if (aqaraSensors.length > 0) {
           let aqaraDataList =
             await this.aqaraService.getMultipleSensorsData(aqaraSensors);
@@ -209,6 +210,7 @@ export class RoomService {
         return d
       }
     }))
+           console.log("aqaraSensors",aqaraSensors)
             console.log("aqaraDataList",aqaraDataList)
           deviceMetrics.push(...aqaraDataList);
         }

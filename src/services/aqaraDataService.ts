@@ -276,6 +276,7 @@ export default class AqaraDataService {
 
     return {
       sensorId,
+      part,
       sensorName: device.name,
       sensorType: device.type,
       readings,
