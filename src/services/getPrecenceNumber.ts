@@ -1,5 +1,6 @@
 import axios, { AxiosResponse } from "axios";
 import crypto from "crypto";
+import { refreshAqaraToken } from "./aqaraDataService";
 require("dotenv").config();
 
 // -------- Config --------
@@ -7,7 +8,6 @@ const REGION_DOMAIN_RAW = "open-ger.aqara.com";
 const APP_ID: string = process.env.APP_ID as string;
 const APP_KEY: string = process.env.APP_KEY as string;
 const KEY_ID: string = process.env.KEY_ID as string;
-const ACCESS_TOKEN: string = process.env.AQARA_ACCESS_TOKEN as string;
 // const SENSOR_ID = "lumi1.54ef447baa7f"; // Room 201b
 
 const REGION_DOMAIN = (
@@ -47,12 +47,15 @@ interface AqaraResourceValue {
 }
 
 // -------- Build Headers --------
-function buildHeaders(): AqaraHeader {
+async function buildHeaders(): Promise<AqaraHeader> {
   const now = Date.now().toString();
   const n = nonce();
+  // Get a fresh access token using the refreshAqaraToken function
+  const accessToken = await refreshAqaraToken();
+  
   const headers: AqaraHeader = {
     "Content-Type": "application/json",
-    Accesstoken: ACCESS_TOKEN,
+    Accesstoken: accessToken,
     Appid: APP_ID,
     Keyid: KEY_ID,
     Nonce: n,
@@ -80,7 +83,7 @@ function buildHeaders(): AqaraHeader {
 // -------- Call API --------
 async function callApi<T>(intent: string, data: Record<string, any> = {}): Promise<T | null> {
   const body = { intent, data };
-  const headers = buildHeaders();
+  const headers = await buildHeaders();
 
   try {
     const res: AxiosResponse<AqaraApiResponse<T>> = await axios.post(BASE_URL, body, {
