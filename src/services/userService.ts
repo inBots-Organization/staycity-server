@@ -70,6 +70,7 @@ export class UserService {
         role: true,
         image: true,
         createdAt: true,
+        password: true,
         updatedAt: true,
       },
     });
@@ -124,6 +125,7 @@ export class UserService {
   }
 
   static async comparePassword(user: User, candidatePassword: string): Promise<boolean> {
+    console.log(candidatePassword, user.password)
     return bcrypt.compare(candidatePassword, user.password);
   }
 
@@ -138,5 +140,17 @@ export class UserService {
     });
 
     return !!user;
+  }
+  
+  static async updatePassword(id: string, newPassword: string): Promise<void> {
+    const salt = await bcrypt.genSalt(12);
+    const hashedPassword = await bcrypt.hash(newPassword, salt);
+
+    await prisma.user.update({
+      where: { id },
+      data: {
+        password: hashedPassword,
+      },
+    });
   }
 }

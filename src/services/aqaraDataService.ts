@@ -164,6 +164,7 @@ export default class AqaraDataService {
 
     // Use the exported refreshAqaraToken function to get a fresh token
     const accessToken = await refreshAqaraToken();
+    console.log(accessToken);
 
     // Store the token for future use
     this.accessToken = accessToken;
@@ -218,45 +219,47 @@ export default class AqaraDataService {
     try {
       // Get fresh headers with a new token for each API call
       const headers = await this.buildHeaders();
-      
+
       const response = await fetch(this.baseUrl, {
         method: 'POST',
         headers,
         body: JSON.stringify({ intent, data }),
       });
-  
+
       const result = await response.json();
-  
+
       if (response.status !== 200 || result?.code !== 0) {
         // If token is invalid and we haven't retried too many times
         if (result?.code === 108 && retryCount < 2) {
-          console.log(`Token invalid, refreshing and retrying (attempt ${retryCount + 1})...`);
-          
+          console.log(
+            `Token invalid, refreshing and retrying (attempt ${retryCount + 1})...`
+          );
+
           // Force a new token by directly calling refreshAqaraToken
           this.accessToken = await refreshAqaraToken();
-          
+
           // Retry the API call with the new token
           return this.callApi(intent, data, retryCount + 1);
         }
-        
+
         throw new Error(
           `Aqara API ${intent} failed: ${result?.code} ${result?.message || result?.messageDetail || ''}`.trim()
         );
       }
-  
+
       return result.result;
     } catch (error) {
       // If we get a network error and haven't retried too many times
       if (error.message.includes('fetch failed') && retryCount < 2) {
         console.log(`Network error, retrying (attempt ${retryCount + 1})...`);
-        
+
         // Wait a bit before retrying
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+
         // Retry the API call
         return this.callApi(intent, data, retryCount + 1);
       }
-      
+
       throw error;
     }
   }

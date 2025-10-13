@@ -4,13 +4,16 @@ import {
   getUserByIdController, 
   createUserController, 
   updateUserController, 
-  deleteUserController 
+  deleteUserController ,
+  updatePasswordController,
 } from '../controllers/userController';
 import { 
   createUserValidator, 
   updateUserValidator, 
   getUserValidator, 
-  deleteUserValidator 
+  deleteUserValidator ,
+  updatePasswordValidator,
+
 } from '../validators/userValidators';
 import { authenticate, authorize } from '../middleware/auth';
 import { PERMISSIONS } from '../types/permissions';
@@ -245,6 +248,52 @@ router.delete('/:id',
   authorize([PERMISSIONS.USERS_DELETE]), 
   deleteUserValidator,
   deleteUserController
+);
+
+/**
+ * @swagger
+ * /api/users/{id}/password:
+ *   put:
+ *     summary: Update user password by ID
+ *     tags: [Users]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/UpdatePasswordRequest'
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         description: User ID
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Update user password by ID
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ApiResponse'
+ *       400:
+ *         description: Invalid request body
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ApiResponse'
+ *       404:
+ *         description: User not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ApiResponse'
+ */
+router.put('/:id/password', 
+  authenticate, 
+  authorize([PERMISSIONS.USERS_UPDATE]), 
+  updatePasswordValidator,
+  updatePasswordController
 );
 
 export default router;

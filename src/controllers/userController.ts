@@ -221,3 +221,65 @@ export const deleteUserController = async (req: Request, res: Response): Promise
     });
   }
 };
+export const updatePasswordController = async (req: Request, res: Response): Promise<void> => {
+  try {
+    // Check validation errors
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      res.status(400).json({
+        success: false,
+        message: 'Validation failed',
+        errors: errors.array()
+      });
+      return;
+    }
+
+    const { id } = req.params;
+    const { currentPassword, newPassword } = req.body;
+    console.log({ currentPassword, newPassword })
+
+    if (!id) {
+      res.status(400).json({
+        success: false,
+        message: 'User ID is required'
+      });
+      return;
+    }
+
+    // Check if user exists
+    const existingUser = await UserService.findByIdWithPassword(id);
+    if (!existingUser) {
+      res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+      return;
+    }
+    console.log({existingUser})
+
+    // Check if current password is correct
+    const isPasswordValid = await UserService.comparePassword(existingUser, currentPassword);
+    if (!isPasswordValid) {
+      res.status(400).json({
+        success: false,
+        message: 'Current password is incorrect'
+      });
+      return;
+    }
+
+    // Update password
+    await UserService.updatePassword(id, newPassword);
+
+    res.status(200).json({
+      success: true,
+      message: 'Password updated successfully'
+    });
+
+  } catch (error) {
+    console.error('Update password error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error'
+    });
+  }
+};

@@ -27,9 +27,9 @@ export const createUserValidator = [
 ];
 
 export const updateUserValidator = [
-  param('id')
-    .isMongoId()
-    .withMessage('Invalid user ID'),
+  // param('id')
+  //   .isMongoId()
+  //   .withMessage('Invalid user ID'),
     
   body('name')
     .optional()
@@ -64,4 +64,15 @@ export const deleteUserValidator = [
   param('id')
     .isMongoId()
     .withMessage('Invalid user ID')
+];
+export const updatePasswordValidator = [
+  // param('id')
+  //   .isMongoId()
+  //   .withMessage('Invalid user ID'),
+  body('currentPassword')
+    .isLength({ min: 6 })
+    .withMessage('Current password must be at least 6 characters long'),
+  body('newPassword')
+    .isLength({ min: 6 })
+    .withMessage('New password must be at least 6 characters long')
 ];
