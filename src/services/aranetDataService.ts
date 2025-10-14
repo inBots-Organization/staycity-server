@@ -47,6 +47,7 @@ export default class AranetDataService {
     });
 
     if (!response.ok) {
+      console.log("response",response)
       throw new Error(`HTTP ${response.status}: ${response.statusText}`);
     }
 
@@ -139,7 +140,6 @@ export default class AranetDataService {
     const results = await Promise.allSettled(
       sensors.map((sensor) => this.getSensorData(sensor.id, sensor.part))
     );
-
     return results
       .filter((result) => result.status === 'fulfilled')
       .map((result) => (result as PromiseFulfilledResult<SensorData>).value);

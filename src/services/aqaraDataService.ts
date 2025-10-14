@@ -191,7 +191,7 @@ export default class AqaraDataService {
       Time: now,
       Lang: 'en',
     };
-    console.log(headers);
+    
 
     const signStr3 =
       Object.entries({
@@ -357,7 +357,7 @@ export default class AqaraDataService {
     const resources = Array.from(this.READABLE_IDS).map((id) => ({
       subjectId: id,
     }));
-    console.log('resources', resources);
+    
 
     const result = await this.callApi('query.resource.value', { resources });
 
@@ -418,7 +418,7 @@ export default class AqaraDataService {
 
     const aqaraData = await this.getAqaraData();
     const deviceData = aqaraData.devices.find((d) => d.id === sensorId);
-    console.log('deviceData', deviceData);
+    
     if (!deviceData || deviceData.status !== 'ok' || !deviceData.data) {
       return {
         sensorId,
@@ -496,7 +496,7 @@ export default class AqaraDataService {
     const results = await Promise.allSettled(
       sensors.map((sensor) => this.getSensorData(sensor.id, sensor.part))
     );
-    console.log('aqara results', results);
+    
 
     return results
       .filter((result) => result.status === 'fulfilled')

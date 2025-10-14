@@ -236,7 +236,7 @@ export const updatePasswordController = async (req: Request, res: Response): Pro
 
     const { id } = req.params;
     const { currentPassword, newPassword } = req.body;
-    console.log({ currentPassword, newPassword })
+    
 
     if (!id) {
       res.status(400).json({

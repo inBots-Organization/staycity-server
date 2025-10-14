@@ -125,7 +125,7 @@ export class UserService {
   }
 
   static async comparePassword(user: User, candidatePassword: string): Promise<boolean> {
-    console.log(candidatePassword, user.password)
+    
     return bcrypt.compare(candidatePassword, user.password);
   }
 

@@ -4,7 +4,7 @@ export async function getAccessToken(refreshToken: string): Promise<string> {
   const url:string = process.env["AQARA_API_ENDPOINT"] || "";
 
   try {
-    console.log(url, refreshToken);
+    
     const response = await fetch(url, {
       method: "POST",
       headers: {
@@ -24,8 +24,7 @@ export async function getAccessToken(refreshToken: string): Promise<string> {
     }
 
     const result = await response.json();
-    console.log("result:", result);
-
+   
     // if (result.code !== 0) {
     //   throw new Error(`API error: ${result.message}`);
     // }

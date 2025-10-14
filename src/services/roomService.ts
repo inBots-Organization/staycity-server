@@ -162,7 +162,7 @@ export class RoomService {
 
     // Group devices by provider
     const aranetDevices = room.devices.filter((d) => d.provider === 'aranet');
-    console.log("aranetDevices",aranetDevices)
+    
     const aqaraDevices = room.devices.filter((d) => d.provider === 'aqara');
 
     // Fetch device metrics from both providers
@@ -179,7 +179,7 @@ export class RoomService {
             .filter((d) => d.externalId)
             .map((d) => ({ id: d.externalId!, part: d.part }))
         ];
-        console.log("aranetSensors", aranetSensors)
+        
 
         if (aranetSensors.length > 0) {
           const aranetDataList =
@@ -203,15 +203,14 @@ export class RoomService {
           let aqaraDataList =
             await this.aqaraService.getMultipleSensorsData(aqaraSensors);
            aqaraDataList= await Promise.all(aqaraDataList.map(async d=>{
-              console.log(d.sensorId)
+              
       if (d.sensorType==="motion"){
         const presence = await getCurrentPresence(d.sensorId);
         d.motionNumber=presence
         return d
       }
     }))
-           console.log("aqaraSensors",aqaraSensors)
-            console.log("aqaraDataList",aqaraDataList)
+          
           deviceMetrics.push(...aqaraDataList);
         }
 

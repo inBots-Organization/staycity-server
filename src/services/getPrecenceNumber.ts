@@ -125,7 +125,7 @@ export async function getCurrentPresence(sensorId: string): Promise<number> {
   const finalCount = presenceCount2?.value || presenceCount1?.value || "0";
   const count = parseInt(finalCount, 10);
 
-  console.log(`✅ Current presence count: ${count}`);
+  
   return count;
 }
 

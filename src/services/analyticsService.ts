@@ -241,6 +241,36 @@ export class AnalyticsService {
         offlineDevices,
       });
     }
+    //get the average energy for the app
+
+    //get the aranet devises
+    const aranetDevises =await prisma.device.findMany({
+      where: {
+        provider: 'aranet',
+      }
+    })
+    const aranetDevisesIds=aranetDevises.map((d)=>({ id: d.externalId!, part: d.part }))
+    let total = 0;
+  let count = 0;
+    if(aranetDevisesIds.length>0){
+      const data = await this.aranetService.getMultipleSensorsData(aranetDevisesIds)    
+      const reading = data.map((el)=>el.readings)
+      
+      
+
+  reading.forEach(deviceMetrics => {
+    deviceMetrics.forEach(metric => {
+      if (metric.metricId === "560") {
+        total += metric.value;
+        count++;
+      }
+    });
+  });
+       
+        
+    }
+    const averageEnergy = total/count || 0;
+    const totalEnergy = total;
 
     // Calculate overall summary
     
@@ -255,6 +285,8 @@ export class AnalyticsService {
       offlineDevices: processedBuildings.reduce((sum, building) => sum + building.offlineDevices, 0),
       aranetDevices: this.countDevicesByProvider(processedBuildings, 'aranet'),
       aqaraDevices: this.countDevicesByProvider(processedBuildings, 'aqara'),
+      averageEnergy: averageEnergy.toFixed(2),
+      totalEnergy: totalEnergy.toFixed(2),
     };
     console.log("summary",summary)
     return {
