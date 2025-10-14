@@ -260,7 +260,7 @@ export class AnalyticsService {
 
   reading.forEach(deviceMetrics => {
     deviceMetrics.forEach(metric => {
-      if (metric.metricId === "560") {
+      if (metric.metricId === "360") {
         total += metric.value;
         count++;
       }
@@ -271,7 +271,26 @@ export class AnalyticsService {
     }
     const averageEnergy = total/count || 0;
     const totalEnergy = total;
+    //calculate the last [day - week - month] energy and energy cost
+    const powerDevises = await prisma.device.findMany({
+      where: {
+        deviceType: "POWER",
+      }
+    })
+    const from = new Date();
 
+// clone it and subtract one month
+const toDate = new Date(from);
+toDate.setMonth(toDate.getMonth() - 1);
+
+// convert both to ISO strings (without milliseconds)
+const toStr = from.toISOString().split('.')[0] + 'Z';
+const  fromStr= toDate.toISOString().split('.')[0] + 'Z';
+
+console.log("from:", fromStr);
+console.log("to:", toStr);
+    const electricityAnalytics = await this.aranetService.getElectricityAnalytics("5250559", "360", fromStr, toStr)
+    console.log("electricityAnalytics",electricityAnalytics)
     // Calculate overall summary
     
     const summary = {
@@ -287,6 +306,7 @@ export class AnalyticsService {
       aqaraDevices: this.countDevicesByProvider(processedBuildings, 'aqara'),
       averageEnergy: averageEnergy.toFixed(2),
       totalEnergy: totalEnergy.toFixed(2),
+      electricityAnalytics
     };
     console.log("summary",summary)
     return {

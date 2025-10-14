@@ -97,6 +97,13 @@ enum DeviceStatus {
   OFFLINE
   MAINTENANCE
 }
+enum DeviseType {
+  POWER
+  ENVIRONMENT
+  MOTION
+  SWITCH
+  DOOR
+}
 
 /// Optional catalog of device types
 // model DeviceType {
@@ -214,6 +221,7 @@ model Room {
 }
 
 // prisma/schema.prisma — inside model Device { ... }
+
 model Device {
   id         String   @id @default(cuid())
   building   Building @relation(fields: [buildingId], references: [id])
@@ -227,6 +235,7 @@ model Device {
 
   name       String
   externalId String?      @db.VarChar(255)
+  deviceType DeviseType   @default(POWER)
   provider   String       @db.VarChar(64) // <— NEW
   status     DeviceStatus @default(OFFLINE)
   payload    Json?

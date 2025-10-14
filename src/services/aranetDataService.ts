@@ -159,7 +159,7 @@ export default class AranetDataService {
       to,
       limit,
     });
-
+    // console.log("data",data)
     const unitCache = new Map<string, { name: string; precision: number }>();
 
     const metricNames: Record<string, string> = {
@@ -194,4 +194,70 @@ export default class AranetDataService {
       self: data.self,
     };
   }
+  async getElectricityAnalytics(
+  sensorId: string,
+  metric: string,
+  from: string,
+  to: string
+): Promise<{ 
+  month:{energy: string; 
+  cost: string; }
+  week:{energy: string; 
+  cost: string; }
+  day:{energy: string; 
+  cost: string; }
+}> {
+  const PRICE_PER_KWH = 0.16;
+
+  const data = await this.makeRequest('/telemetry/history', {
+    sensor: sensorId,
+    metric,
+    from,
+    to,
+  });
+
+  const now = new Date();
+
+  const oneWeekAgo = new Date();
+  oneWeekAgo.setDate(now.getDate() - 7);
+
+  const oneDayAgo = new Date();
+  oneDayAgo.setDate(now.getDate() - 1);
+
+  // 🟢 Total Energy (Month)
+  const lastMonthEnergyWh = data.readings.reduce((acc, cur) => acc + cur.value, 0);
+  const lastMonthEnergyKwh = (lastMonthEnergyWh / 1000).toFixed(2);
+  const totalPrice = (Number(lastMonthEnergyKwh) * PRICE_PER_KWH).toFixed(2);
+
+  // 🟡 Last Week Energy
+  const lastWeekEnergyWh = data.readings
+    .filter(log => {
+      const logTime = new Date(log.time);
+      return logTime >= oneWeekAgo && logTime <= now;
+    })
+    .reduce((acc, cur) => acc + cur.value, 0);
+  const lastWeekEnergyKwh = (lastWeekEnergyWh / 1000).toFixed(2);
+  const lastWeekPrice = (Number(lastWeekEnergyKwh) * PRICE_PER_KWH).toFixed(2);
+
+  // 🔵 Last Day Energy
+  const lastDayEnergyWh = data.readings
+    .filter(log => {
+      const logTime = new Date(log.time);
+      return logTime >= oneDayAgo && logTime <= now;
+    })
+    .reduce((acc, cur) => acc + cur.value, 0);
+  const lastDayEnergyKwh = (lastDayEnergyWh / 1000).toFixed(2);
+  const lastDayPrice = (Number(lastDayEnergyKwh) * PRICE_PER_KWH).toFixed(2);
+
+  return {
+    month:{energy:lastMonthEnergyKwh,
+    cost:totalPrice},
+    week:{energy:lastWeekEnergyKwh,
+    cost:lastWeekPrice},
+    day:{energy:lastDayEnergyKwh,
+    cost:lastDayPrice}
+  };
+}
+
+
 }
