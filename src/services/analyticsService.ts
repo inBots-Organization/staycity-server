@@ -177,7 +177,23 @@ export class AnalyticsService {
           const totalDevices = processedDevices.length;
           const onlineDevices = processedDevices.filter(d => d.status === 'ONLINE').length;
           const offlineDevices = processedDevices.filter(d => d.status === 'OFFLINE').length;
-
+          console.log("room",room)
+          const powerDevices = await prisma.device.findMany({
+            where: {
+              roomId: room.id,
+              provider: 'aranet',
+              deviceType: "POWER"
+            },
+          })
+          let currentPower = 1
+          if(powerDevices.length > 0){
+            const powerDevice = powerDevices[0]
+            const currentEnergy = await this.aranetService.getSensorData(powerDevice.externalId || '', powerDevice.part);
+            console.log("currentEnergy",currentEnergy)
+            currentPower =currentEnergy.readings.filter((el)=>el.metricId ==='560')[0]?.value 
+          }
+          
+          console.log(currentPower)
           processedRooms.push({
             id: room.id,
             name: room.name,
@@ -185,11 +201,13 @@ export class AnalyticsService {
             status: room.status,
             capacity: room.capacity,
             devices: processedDevices,
+            currentPower:currentPower || 0,
             totalDevices,
             onlineDevices,
             offlineDevices,
           });
         }
+       
 
         // Calculate floor metrics
         const totalRooms = processedRooms.length;

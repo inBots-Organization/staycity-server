@@ -258,6 +258,32 @@ export default class AranetDataService {
     cost:lastDayPrice}
   };
 }
+  async getHestory(
+  sensorId: string,
+  metric: string,
+  from: string,
+  to: string
+): Promise<{ 
+  month:{energy: string; 
+  cost: string; }
+  week:{energy: string; 
+  cost: string; }
+  day:{energy: string; 
+  cost: string; }
+}> {
+  const PRICE_PER_KWH = 0.16;
+
+  const data = await this.makeRequest('/telemetry/history', {
+    sensor: sensorId,
+    metric,
+    from,
+    to,
+  });
+
+  
+
+  return data
+}
 
 
 }

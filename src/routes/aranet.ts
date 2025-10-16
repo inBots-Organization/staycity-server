@@ -7,7 +7,7 @@
 
 import { Router } from 'express';
 import { query } from 'express-validator';
-import { getAranetLogs } from '../controllers/aranetController';
+import { getAranetLogs ,getHomeLogs} from '../controllers/aranetController';
 
 const router = Router();
 
@@ -101,6 +101,7 @@ const validateLogsQuery = [
  *         description: Failed to fetch historical readings
  */
 router.get('/logs', validateLogsQuery, getAranetLogs);
+router.get('/homeLogs', getHomeLogs);
 
 export default router;
 
