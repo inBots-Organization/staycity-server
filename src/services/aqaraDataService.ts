@@ -1,5 +1,7 @@
+import { User } from './../generated/prisma/index.d';
 import { SensorReading, SensorData, SensorDevice } from './aranetDataService';
 import { getCurrentPresence } from '@/services/getPrecenceNumber';
+import prisma from '../config/prisma';
 
 /**
  * Refreshes the Aqara access token using the refresh token
@@ -13,6 +15,13 @@ export async function refreshAqaraToken(): Promise<string> {
   const appKey = process.env['APP_KEY'] || '';
   const keyId = process.env['KEY_ID'] || '';
   const refreshToken = process.env['REFRESH_TOKEN'] || '';
+  // let refreshToken = await prisma.user.findUnique({
+  //   where: {
+  //     id: "cmffdevpf0001ijp5xxxe85pf",
+  //   },
+  // });
+  // refreshToken = refreshToken?.refreshToken;
+  // console.log("refreshToken2",refreshToken)
   const baseUrl = `${regionDomain}/v3.0/open/api`;
 
   if (!appId || !appKey || !keyId || !refreshToken || !regionDomain) {
@@ -59,12 +68,22 @@ export async function refreshAqaraToken(): Promise<string> {
 
   const result = await response.json();
 
+
   if (response.status !== 200 || result?.code !== 0) {
+    console.log("error",result)
     throw new Error(
       `Aqara token refresh failed: ${result?.code} ${result?.message || ''}`.trim()
     );
   }
-
+  // Update the refresh token in the database
+  // await prisma.user.update({
+  //   where: {
+  //     id: "cmffdevpf0001ijp5xxxe85pf",
+  //   },
+  //   data: {
+  //     refreshToken: result.result.refreshToken,
+  //   },
+  // });
   return result.result.accessToken;
 }
 

@@ -43,6 +43,8 @@ model User {
   password  String   @db.VarChar(255)
   role      RoleName @default(user)
   image     String?  @db.VarChar(500)
+  refreshToken String? @db.VarChar(255)
+  accessToken String? @db.VarChar(255)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

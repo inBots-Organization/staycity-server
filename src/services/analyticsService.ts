@@ -2,7 +2,7 @@ import { prisma } from '../config/prisma';
 import { BuildingStatus, RoomType, RoomStatus, DeviceStatus } from '../generated/prisma';
 import AranetDataService, { SensorData, SensorDevice } from './aranetDataService';
 import AqaraDataService from './aqaraDataService';
-
+import {getCurrentPresence} from './getPrecenceNumber';
 interface DeviceWithMetrics {
   id: string;
   name: string;
@@ -185,12 +185,12 @@ export class AnalyticsService {
               deviceType: "POWER"
             },
           })
-          let currentPower = 1
+          let currentPower = 0
           if(powerDevices.length > 0){
             const powerDevice = powerDevices[0]
             const currentEnergy = await this.aranetService.getSensorData(powerDevice.externalId || '', powerDevice.part);
             console.log("currentEnergy",currentEnergy)
-            currentPower =currentEnergy.readings.filter((el)=>el.metricId ==='560')[0]?.value 
+            currentPower =currentEnergy.readings.filter((el)=>el.metricId ==='360')[0]?.value 
           }
           
           console.log(currentPower)
@@ -308,15 +308,23 @@ const  fromStr= toDate.toISOString().split('.')[0] + 'Z';
 console.log("from:", fromStr);
 console.log("to:", toStr);
     const electricityAnalytics = await this.aranetService.getElectricityAnalytics("5250559", "360", fromStr, toStr)
-    console.log("electricityAnalytics",electricityAnalytics)
-    // Calculate overall summary
     
+    // Calculate overall summary
+    //calculate the personce number
+    const motionDevises = await prisma.device.findMany({
+      where: {
+        deviceType: "MOTION",
+      }
+    })
+    const motionDevisesIds = motionDevises.map((d)=>d.externalId)
+    const presenceNumber = await Promise.all(motionDevisesIds.map(async (id)=>await getCurrentPresence(id!)))
+    console.log("presenceNumber",presenceNumber.reduce((sum, num) => sum + num, 0))
     const summary = {
       totalBuildings: processedBuildings.length,
       totalFloors: processedBuildings.reduce((sum, building) => sum + building.totalFloors, 0),
       totalRooms: processedBuildings.reduce((sum, building) => sum + building.totalRooms, 0),
       availableRooms: processedBuildings.reduce((sum, building) => sum + building.availableRooms, 0),
-      occupiedRooms: processedBuildings.reduce((sum, building) => sum + building.occupiedRooms, 0),
+      occupiedRooms: presenceNumber.reduce((sum, num) => sum + num, 0),
       totalDevices: processedBuildings.reduce((sum, building) => sum + building.totalDevices, 0),
       onlineDevices: processedBuildings.reduce((sum, building) => sum + building.onlineDevices, 0),
       offlineDevices: processedBuildings.reduce((sum, building) => sum + building.offlineDevices, 0),
