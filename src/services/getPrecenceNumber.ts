@@ -51,7 +51,8 @@ async function buildHeaders(): Promise<AqaraHeader> {
   const now = Date.now().toString();
   const n = nonce();
   // Get a fresh access token using the refreshAqaraToken function
-  const accessToken = await refreshAqaraToken();
+  const result = await refreshAqaraToken();
+  const accessToken = result.accessToken
   
   const headers: AqaraHeader = {
     "Content-Type": "application/json",

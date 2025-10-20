@@ -13,6 +13,10 @@ const startServer = async (): Promise<void> => {
     const server = app.listen(config.port, () => {
       logger.info(`Server running on port ${config.port} in ${config.nodeEnv} mode`);
       logger.info(`Health check available at http://localhost:${config.port}/health`);
+      
+      // Initialize cron jobs
+      const cronService = require('./services/cronService');
+      cronService.initializeJobs();
     });
 
     // Graceful shutdown
@@ -24,6 +28,11 @@ const startServer = async (): Promise<void> => {
           logger.error('Error during server close:', error);
           process.exit(1);
         }
+        
+        // Stop all cron jobs
+        const cronService = require('./services/cronService');
+        cronService.stopAllJobs();
+        logger.info('All cron jobs stopped');
         
         // Disconnect from database
         await prisma.$disconnect();

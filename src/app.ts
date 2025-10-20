@@ -19,6 +19,7 @@ import devicesRoutes from './routes/devices';
 import analyticsRoutes from './routes/analytics';
 import aranetRoutes from './routes/aranet';
 import sittingsRoutes from './routes/sittings';
+import * as cronService from './services/cronService';
 
 const app = express();
 

@@ -14,14 +14,14 @@ export async function refreshAqaraToken(): Promise<string> {
   const appId = process.env['APP_ID'] || '';
   const appKey = process.env['APP_KEY'] || '';
   const keyId = process.env['KEY_ID'] || '';
-  const refreshToken = process.env['REFRESH_TOKEN'] || '';
-  // let refreshToken = await prisma.user.findUnique({
-  //   where: {
-  //     id: "cmffdevpf0001ijp5xxxe85pf",
-  //   },
-  // });
-  // refreshToken = refreshToken?.refreshToken;
-  // console.log("refreshToken2",refreshToken)
+  // const refreshToken = process.env['REFRESH_TOKEN'] || '';
+  let refreshToken = await prisma.user.findUnique({
+    where: {
+      id: "cmffdevpf0001ijp5xxxe85pf",
+    },
+  });
+  refreshToken = refreshToken?.refreshToken;
+  console.log("refreshToken2",refreshToken)
   const baseUrl = `${regionDomain}/v3.0/open/api`;
 
   if (!appId || !appKey || !keyId || !refreshToken || !regionDomain) {
@@ -84,7 +84,7 @@ export async function refreshAqaraToken(): Promise<string> {
   //     refreshToken: result.result.refreshToken,
   //   },
   // });
-  return result.result.accessToken;
+  return result.result;
 }
 
 // Helper functions for the exported function
@@ -182,7 +182,8 @@ export default class AqaraDataService {
     const n = this.nonce();
 
     // Use the exported refreshAqaraToken function to get a fresh token
-    const accessToken = await refreshAqaraToken();
+    const result = await refreshAqaraToken();
+    const accessToken = result.accessToken
     console.log(accessToken);
 
     // Store the token for future use
