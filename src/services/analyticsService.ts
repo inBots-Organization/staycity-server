@@ -190,7 +190,7 @@ export class AnalyticsService {
             const powerDevice = powerDevices[0]
             const currentEnergy = await this.aranetService.getSensorData(powerDevice.externalId || '', powerDevice.part);
             console.log("currentEnergy",currentEnergy)
-            currentPower =currentEnergy.readings.filter((el)=>el.metricId ==='360')[0]?.value 
+            currentPower =currentEnergy.readings.filter((el)=>el.metricId ===process.env.POWER_METRES_ID )[0]?.value || 0
           }
           
           console.log(currentPower)
@@ -278,7 +278,7 @@ export class AnalyticsService {
 
   reading.forEach(deviceMetrics => {
     deviceMetrics.forEach(metric => {
-      if (metric.metricId === "360") {
+      if (metric.metricId === process.env.POWER_METRES_ID ) {
         total += metric.value;
         count++;
       }
@@ -307,7 +307,7 @@ const  fromStr= toDate.toISOString().split('.')[0] + 'Z';
 
 console.log("from:", fromStr);
 console.log("to:", toStr);
-    const electricityAnalytics = await this.aranetService.getElectricityAnalytics("5250559", "360", fromStr, toStr)
+    const electricityAnalytics = await this.aranetService.getElectricityAnalytics("5251525",process.env.POWER_METRES_ID , fromStr, toStr)
     
     // Calculate overall summary
     //calculate the personce number

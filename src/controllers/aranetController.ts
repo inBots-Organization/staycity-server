@@ -78,7 +78,7 @@ export const getHomeLogs = async (req: Request, res: Response): Promise<void> =>
         deviseType = "ENVIRONMENT";
      }
      if (type === "power") {
-      metricId="360"
+      metricId=process.env.POWER_METRES_ID || ""
      }else if(type === "temperature"){
       metricId="1"
      }else if(type === "humidity"){

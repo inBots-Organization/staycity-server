@@ -65,7 +65,7 @@ export const getRoomByIdWithMetrics = async (
   res: Response
 ): Promise<void> => {
   try {
-   const presence = await getCurrentPresence("lumi1.54ef447baa7f");
+   
     const { id } = req.params;
     if (!id) {
       responseError(res, 'Room ID is required', 400);

@@ -94,6 +94,9 @@ export class DeviceService {
         provider: data.provider,
         status: data.status || 'OFFLINE',
         payload: data.payload,
+        provider: data.provider,
+        deviceType: data.deviceType ,
+        part: data.part || null,
       },
       include: {
         building: {
