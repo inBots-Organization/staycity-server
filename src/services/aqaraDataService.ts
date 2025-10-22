@@ -1,4 +1,4 @@
-import { User } from './../generated/prisma/index.d';
+import { User, DeviseType } from './../generated/prisma/index.d';
 import { SensorReading, SensorData, SensorDevice } from './aranetDataService';
 import { getCurrentPresence } from '@/services/getPrecenceNumber';
 import prisma from '../config/prisma';
@@ -314,8 +314,8 @@ export default class AqaraDataService {
       type: 'switch',
     },
     {
-      id: 'lumi1.54ef447baa7f',
-      name: '301m',
+      id: 'lumi1.54ef44771f51',
+      name: '239b',
       location: 'Floor 3',
       model: 'lumi.motion.agl001',
       type: 'motion',
@@ -373,13 +373,15 @@ export default class AqaraDataService {
     return bySubject;
   }
 
-  async getAqaraData(): Promise<AqaraResponse> {
-    const resources = Array.from(this.READABLE_IDS).map((id) => ({
-      subjectId: id,
+  async getAqaraData(sensorIds: string[]): Promise<AqaraResponse> {
+    const resources = sensorIds.map((sensorId) => ({
+      subjectId: sensorId,
     }));
+   
     
 
     const result = await this.callApi('query.resource.value', { resources });
+  
 
     const rows = Array.isArray(result)
       ? result
@@ -387,38 +389,44 @@ export default class AqaraDataService {
         ? result.values
         : [];
     const map = this.indexValues(rows);
-
-    const devices = this.DEVICES.map((d) => {
-      if (!this.READABLE_IDS.has(d.id)) {
-        return {
-          id: d.id,
-          name: d.name,
-          location: d.location,
-          type: d.type,
-          model: d.model,
-          status: 'unsupported',
-          data: null,
-        };
-      }
-
-      const ridMap = map[d.id] || {};
+    const devices2 =await prisma.device.findMany({
+      where: {
+        externalId: {
+          in: sensorIds,
+        },
+      },
+    })
+   console.log("devices2",devices2)
+    const devices = devices2.map((d) => {
+      // if (!this.READABLE_IDS.has(d.id)) {
+      //   return {
+      //     id: d.id,
+      //     name: d.name,
+      //     location: d.location,
+      //     type: d.type,
+      //     model: d.model,
+      //     status: 'unsupported',
+      //     data: null,
+      //   };
+      // }
+     console.log(this.RID.MOTION)
+      const ridMap = map[d.externalId] || {};
       const motion = this.toBool01(ridMap[this.RID.MOTION]);
+      console.log("motion",motion)
       const battery = this.toNum(ridMap[this.RID.BATTERY]);
       const rssi = this.toNum(ridMap[this.RID.RSSI]);
       const lux = this.toNum(ridMap[this.RID.LUX]);
       const temperatureC = this.sanitizeTempC(ridMap[this.RID.TEMP_C]);
 
       return {
-        id: d.id,
+        id: d.externalId,
         name: d.name,
-        location: d.location,
-        type: d.type,
-        model: d.model,
+        type: d.deviseType,
+        // model: d.model,
         status: 'ok',
         data: { motion, battery, rssi, lux, temperatureC },
       };
     });
-
     return {
       timestamp: new Date().toISOString(),
       devices,
@@ -431,15 +439,26 @@ export default class AqaraDataService {
   }
 
   async getSensorData(sensorId: string, part?: string): Promise<SensorData> {
-    const device = this.DEVICES.find((d) => d.id === sensorId);
+    // console.log("yessssssssssssssssssssssssssssssssssssssssssssss")
+    // console.log()
+    // const device = this.DEVICES.find((d) => d.id === sensorId);
+    // console.log("mothion",device)
+    // if (!device) {
+      // throw new Error(`Device with ID ${sensorId} not found`);
+    // }
+    const device = await prisma.device.findFirst({
+  where: { externalId: sensorId },
+});
     if (!device) {
       throw new Error(`Device with ID ${sensorId} not found`);
     }
-
-    const aqaraData = await this.getAqaraData();
+    const aqaraData = await this.getAqaraData([sensorId]);
     const deviceData = aqaraData.devices.find((d) => d.id === sensorId);
     
+    
+    
     if (!deviceData || deviceData.status !== 'ok' || !deviceData.data) {
+      
       return {
         sensorId,
         sensorName: device.name,
@@ -449,14 +468,14 @@ export default class AqaraDataService {
         part,
       };
     }
-
+    
     const readings: SensorReading[] = [];
 
     if (deviceData.data.motion !== null) {
       readings.push({
         metricId: 'motion',
         metricName: 'Motion',
-        value: deviceData.data.motion ? 1 : 0,
+        value: await getCurrentPresence(sensorId),
         unit: 'boolean',
         timestamp: aqaraData.timestamp,
       });
@@ -501,23 +520,24 @@ export default class AqaraDataService {
         timestamp: aqaraData.timestamp,
       });
     }
-
+    
     return {
       sensorId,
       part,
       sensorName: device.name,
-      sensorType: device.type,
+      sensorType: device.deviceType,
       readings,
       lastUpdate: aqaraData.timestamp,
     };
   }
 
   async getMultipleSensorsData(sensors: SensorDevice[]): Promise<SensorData[]> {
+   
     const results = await Promise.allSettled(
       sensors.map((sensor) => this.getSensorData(sensor.id, sensor.part))
     );
     
-
+     
     return results
       .filter((result) => result.status === 'fulfilled')
       .map((result) => (result as PromiseFulfilledResult<SensorData>).value);

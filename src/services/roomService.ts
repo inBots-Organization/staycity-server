@@ -192,6 +192,7 @@ export class RoomService {
     }
 
     // Fetch Aqara data
+    
     if (aqaraDevices.length > 0) {
       
       try {
@@ -200,13 +201,17 @@ export class RoomService {
           .map((d) => ({ id: d.externalId!, part: d.part }))];
         
         if (aqaraSensors.length > 0) {
+          
           let aqaraDataList =
             await this.aqaraService.getMultipleSensorsData(aqaraSensors);
+            console.log("aqaraDataList",aqaraDataList)
            aqaraDataList= await Promise.all(aqaraDataList.map(async d=>{
-              
-      if (d.sensorType==="motion"){
+      
+      if (d.sensorType==="MOTION"){
         const presence = await getCurrentPresence(d.sensorId);
+        console.log("getCurrentPresence",presence)
         d.motionNumber=presence
+        console.log("d",d)
         return d
       }
     }))
