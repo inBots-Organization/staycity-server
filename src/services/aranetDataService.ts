@@ -201,11 +201,14 @@ export default class AranetDataService {
   to: string
 ): Promise<{ 
   month:{energy: string; 
-  cost: string; }
+  cost: string;
+  saving: string; }
   week:{energy: string; 
-  cost: string; }
+  cost: string;
+  saving: string; }
   day:{energy: string; 
-  cost: string; }
+  cost: string;
+  saving: string; }
 }> {
   const PRICE_PER_KWH = 0.16;
 
@@ -224,13 +227,32 @@ export default class AranetDataService {
   const oneDayAgo = new Date();
   oneDayAgo.setDate(now.getDate() - 1);
 
+  const twoDaysAgo = new Date();
+  twoDaysAgo.setDate(now.getDate() - 2);
+
+  const twoWeeksAgo = new Date();
+  twoWeeksAgo.setDate(now.getDate() - 14);
+
   // 🟢 Total Energy (Month)
-  const lastMonthEnergyWh = data.readings.reduce((acc, cur) => acc + cur.value, 0);
+  if(!data?.readings?.length) {
+    console.log("data",data)
+    return {
+    month:{energy:'0',
+    cost:'0',
+    saving:'0'},
+    week:{energy:'0',
+    cost:'0',
+    saving:'0'},
+    day:{energy:'0',
+    cost:'0',
+    saving:'0'}
+  }}
+  const lastMonthEnergyWh = data?.readings?.reduce((acc, cur) => acc + cur.value, 0) || 0;
   const lastMonthEnergyKwh = (lastMonthEnergyWh / 1000)
   const totalPrice = (Number(lastMonthEnergyKwh) * PRICE_PER_KWH)
 
   // 🟡 Last Week Energy
-  const lastWeekEnergyWh = data.readings
+  const lastWeekEnergyWh = data?.readings
     .filter(log => {
       const logTime = new Date(log.time);
       return logTime >= oneWeekAgo && logTime <= now;
@@ -238,6 +260,20 @@ export default class AranetDataService {
     .reduce((acc, cur) => acc + cur.value, 0);
   const lastWeekEnergyKwh = (lastWeekEnergyWh / 1000)
   const lastWeekPrice = (Number(lastWeekEnergyKwh) * PRICE_PER_KWH)
+
+  // Previous Week Energy (for week savings calculation)
+  const previousWeekEnergyWh = data?.readings
+    .filter(log => {
+      const logTime = new Date(log.time);
+      return logTime >= twoWeeksAgo && logTime < oneWeekAgo;
+    })
+    .reduce((acc, cur) => acc + cur.value, 0) || 0;
+  const previousWeekEnergyKwh = (previousWeekEnergyWh / 1000)
+  const previousWeekPrice = (Number(previousWeekEnergyKwh) * PRICE_PER_KWH)
+  
+  // Calculate week savings (previous week cost - current week cost)
+  const weekSaving = previousWeekPrice - lastWeekPrice;
+  const weekSavingFormatted = weekSaving.toString() ;
 
   // 🔵 Last Day Energy
   const lastDayEnergyWh = data.readings
@@ -249,13 +285,52 @@ export default class AranetDataService {
   const lastDayEnergyKwh = (lastDayEnergyWh / 1000)
   const lastDayPrice = (Number(lastDayEnergyKwh) * PRICE_PER_KWH)
 
+  // Previous Day Energy (for day savings calculation)
+  const previousDayEnergyWh = data.readings
+    .filter(log => {
+      const logTime = new Date(log.time);
+      return logTime >= twoDaysAgo && logTime < oneDayAgo;
+    })
+    .reduce((acc, cur) => acc + cur.value, 0) || 0;
+  const previousDayEnergyKwh = (previousDayEnergyWh / 1000)
+  const previousDayPrice = (Number(previousDayEnergyKwh) * PRICE_PER_KWH)
+  
+  // Calculate day savings (previous day cost - current day cost)
+  const daySaving = previousDayPrice - lastDayPrice;
+  const daySavingFormatted = daySaving.toString() ;
+  console.log("dataaaa",{
+    month:{
+      energy: lastMonthEnergyKwh.toString(),
+      cost: totalPrice.toString(),
+      saving: '0' // Month saving is set to 0 as requested
+    },
+    week:{
+      energy: lastWeekEnergyKwh.toString(),
+      cost: lastWeekPrice.toString(),
+      saving: weekSavingFormatted
+    },
+    day:{
+      energy: lastDayEnergyKwh.toString(),
+      cost: lastDayPrice.toString(),
+      saving: daySavingFormatted
+    }
+  })
   return {
-    month:{energy:lastMonthEnergyKwh,
-    cost:totalPrice},
-    week:{energy:lastWeekEnergyKwh,
-    cost:lastWeekPrice},
-    day:{energy:lastDayEnergyKwh,
-    cost:lastDayPrice}
+    month:{
+      energy: lastMonthEnergyKwh.toString(),
+      cost: totalPrice.toString(),
+      saving: '0' // Month saving is set to 0 as requested
+    },
+    week:{
+      energy: lastWeekEnergyKwh.toString(),
+      cost: lastWeekPrice.toString(),
+      saving: weekSavingFormatted
+    },
+    day:{
+      energy: lastDayEnergyKwh.toString(),
+      cost: lastDayPrice.toString(),
+      saving: daySavingFormatted
+    }
   };
 }
   async getHestory(
