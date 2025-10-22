@@ -307,7 +307,34 @@ const  fromStr= toDate.toISOString().split('.')[0] + 'Z';
 
 console.log("from:", fromStr);
 console.log("to:", toStr);
-    const electricityAnalytics = await this.aranetService.getElectricityAnalytics("5251525",process.env.POWER_METRES_ID , fromStr, toStr)
+const powerDevisesIds = powerDevises.map((d)=>d.externalId)
+    
+    // Get electricity analytics for all power sensors and combine them
+    let totalElectricityAnalytics = {
+      month: { energy: "0", cost: "0" },
+      week: { energy: "0", cost: "0" },
+      day: { energy: "0", cost: "0" }
+    };
+    
+    // Process all power devices
+    for (const deviceId of powerDevisesIds) {
+      const sensorAnalytics = await this.aranetService.getElectricityAnalytics(
+        deviceId,
+        process.env.POWER_METRES_ID,
+        fromStr,
+        toStr
+      );
+      
+      // Add values to the total
+      totalElectricityAnalytics.month.energy = (parseFloat(totalElectricityAnalytics.month.energy) + parseFloat(sensorAnalytics.month.energy)).toFixed(2);
+      totalElectricityAnalytics.month.cost = (parseFloat(totalElectricityAnalytics.month.cost) + parseFloat(sensorAnalytics.month.cost)).toFixed(2);
+      totalElectricityAnalytics.week.energy = (parseFloat(totalElectricityAnalytics.week.energy) + parseFloat(sensorAnalytics.week.energy)).toFixed(2);
+      totalElectricityAnalytics.week.cost = (parseFloat(totalElectricityAnalytics.week.cost) + parseFloat(sensorAnalytics.week.cost)).toFixed(2);
+      totalElectricityAnalytics.day.energy = (parseFloat(totalElectricityAnalytics.day.energy) + parseFloat(sensorAnalytics.day.energy)).toFixed(2);
+      totalElectricityAnalytics.day.cost = (parseFloat(totalElectricityAnalytics.day.cost) + parseFloat(sensorAnalytics.day.cost)).toFixed(2);
+    }
+    
+    const electricityAnalytics = totalElectricityAnalytics;
     
     // Calculate overall summary
     //calculate the personce number
