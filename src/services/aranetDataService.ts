@@ -226,8 +226,8 @@ export default class AranetDataService {
 
   // 🟢 Total Energy (Month)
   const lastMonthEnergyWh = data.readings.reduce((acc, cur) => acc + cur.value, 0);
-  const lastMonthEnergyKwh = (lastMonthEnergyWh / 1000).toFixed(2);
-  const totalPrice = (Number(lastMonthEnergyKwh) * PRICE_PER_KWH).toFixed(2);
+  const lastMonthEnergyKwh = (lastMonthEnergyWh / 1000)
+  const totalPrice = (Number(lastMonthEnergyKwh) * PRICE_PER_KWH)
 
   // 🟡 Last Week Energy
   const lastWeekEnergyWh = data.readings
@@ -236,8 +236,8 @@ export default class AranetDataService {
       return logTime >= oneWeekAgo && logTime <= now;
     })
     .reduce((acc, cur) => acc + cur.value, 0);
-  const lastWeekEnergyKwh = (lastWeekEnergyWh / 1000).toFixed(2);
-  const lastWeekPrice = (Number(lastWeekEnergyKwh) * PRICE_PER_KWH).toFixed(2);
+  const lastWeekEnergyKwh = (lastWeekEnergyWh / 1000)
+  const lastWeekPrice = (Number(lastWeekEnergyKwh) * PRICE_PER_KWH)
 
   // 🔵 Last Day Energy
   const lastDayEnergyWh = data.readings
@@ -246,8 +246,8 @@ export default class AranetDataService {
       return logTime >= oneDayAgo && logTime <= now;
     })
     .reduce((acc, cur) => acc + cur.value, 0);
-  const lastDayEnergyKwh = (lastDayEnergyWh / 1000).toFixed(2);
-  const lastDayPrice = (Number(lastDayEnergyKwh) * PRICE_PER_KWH).toFixed(2);
+  const lastDayEnergyKwh = (lastDayEnergyWh / 1000)
+  const lastDayPrice = (Number(lastDayEnergyKwh) * PRICE_PER_KWH)
 
   return {
     month:{energy:lastMonthEnergyKwh,
