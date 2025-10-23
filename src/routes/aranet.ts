@@ -101,6 +101,7 @@ const validateLogsQuery = [
  *         description: Failed to fetch historical readings
  */
 router.get('/logs', validateLogsQuery, getAranetLogs);
+// router.get('/script', script);
 router.get('/homeLogs', getHomeLogs);
 
 export default router;

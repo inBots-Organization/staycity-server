@@ -1,6 +1,8 @@
 import { Request, Response } from 'express';
 import { validationResult } from 'express-validator';
 import {getCurrentPresence}from "@services/getPrecenceNumber"
+import prisma from '../config/prisma';
+
 import {
   RoomService,
   ListRoomsParams,
@@ -9,6 +11,7 @@ import {
 } from '../services/roomService';
 import { RoomStatus, RoomType } from '../generated/prisma';
 import { responseSuccess, responseError } from '../utils/responseHelper';
+import AranetDataService from '@/services/aranetDataService';
 
 export const listRooms = async (req: Request, res: Response): Promise<void> => {
   try {
@@ -367,3 +370,60 @@ export const getRoomDevices = async (
     responseError(res, 'Internal server error');
   }
 };
+// export const script = async (
+//   req: Request,
+//   res: Response
+// ): Promise<void> => {
+//   try {
+//     const to = new Date();
+//     const from = new Date();
+//     from.setMonth(from.getMonth() - 1);
+
+//     const devices = await prisma.device.findMany({
+//       where: { provider: "aranet" },
+//     });
+
+//     const service = new AranetDataService();
+
+//     const allLogs: Record<string, any[]> = {};
+
+//     for (const device of devices) {
+//       const sensorId = device.externalId;
+//       if (!sensorId) continue; // skip if device has no externalId
+
+//       const metrics =
+//         device.deviceType === "POWER"
+//           ? [process.env.POWER_METRES_ID]
+//           : ["1", "2", "3", "4"];
+
+//       allLogs[sensorId] = [];
+
+//       for (const metric of metrics) {
+//         try {
+//           const logs = await service.getHestory(
+//             sensorId,
+//             metric,
+//             from.toISOString(),
+//             to.toISOString()
+//           );
+//           allLogs[sensorId].push({
+//             metric,
+//             readings: logs.readings || [],
+//           });
+          
+
+
+//         } catch (err) {
+//           console.error(`Failed to fetch logs for ${sensorId} - metric ${metric}:`, err);
+//         }
+//       }
+//     }
+//    const allReadings = Object.values(allLogs)
+//   .flatMap(metrics => metrics.flatMap(m => m.readings));
+//   await prisma.logs.createMany({data:allReadings})
+//     responseSuccess(res, "All sensors logs retrieved successfully",allReadings);
+//   } catch (error: any) {
+//     console.error("Error in script:", error);
+//     responseError(res, "Internal server error", 500, error.message);
+//   }
+// };

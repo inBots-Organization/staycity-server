@@ -1,4 +1,4 @@
-import { Device, Metric } from './../generated/prisma/index.d';
+import { Device, Metric, DeviseType } from './../generated/prisma/index.d';
 import { Request, Response } from 'express';
 import { validationResult } from 'express-validator';
 import AranetDataService from '../services/aranetDataService';
@@ -60,6 +60,32 @@ export const getAranetLogs = async (req: Request, res: Response): Promise<void> 
     responseError(res, 'Failed to fetch historical readings', 500, error.message);
   }
 };
+// export const script = async (req: Request, res: Response): Promise<void> => {
+ 
+
+//   try {
+//     // type LogsQuery = { sensorId: string; metric: string; from: string; to: string; limit?: string };
+//     // const { sensorId, metric, from, to, limit } = req.query as unknown as LogsQuery;
+//     const to = new Date();
+//     const from = new Date();
+//     from.setMonth(from.getMonth() - 1);
+//     const aranetDevises=await prisma.device.findMany({where:{
+//       provider:"aranet"
+//     }}) 
+//     const logs = aranetDevises.map(async (device)=>{
+//           let data=[]
+//           if(DeviseType.DeviseType==="POWER"){
+//                 data  = await service.getHestory(device.externalId, process.env.POWER_METRES_ID, from, to);
+//           }
+//           return  data.readings;
+//     })
+
+    
+//     responseSuccess(res, 'Historical readings retrieved successfully', logs);
+//   } catch (error: any) {
+//     responseError(res, 'Failed to fetch historical readings', 500, error.message);
+//   }
+// };
 export const getHomeLogs = async (req: Request, res: Response): Promise<void> => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
