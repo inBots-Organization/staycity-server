@@ -779,5 +779,6 @@ router.post('/:id/devices/link', validateId, validateDeviceIds, roomController.l
  *         description: Room not found
  */
 router.post('/:id/devices/unlink', validateId, validateDeviceIds, roomController.unlinkDevicesFromRoom);
+// router.get('/script/logs', roomController.script);
 
 export default router;
