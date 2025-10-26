@@ -16,7 +16,7 @@ const REGION_DOMAIN = (
 const BASE_URL = `${REGION_DOMAIN}/v3.0/open/api`;
 
 // Your motion sensor ID - update this with your room's sensor
-const SENSOR_ID = "lumi1.54ef447baa7f"; // Room 201b
+// const SENSOR_ID = "lumi1.54ef447baa7f"; // Room 201b
 
 // ---------- Helpers ----------
 const nonce = () => crypto.randomBytes(8).toString("hex");
@@ -69,7 +69,7 @@ async function callApi(intent, data = {}) {
 
     return res.data.result;
   } catch (err) {
-    console.error("❌ API Error:", err.message);
+    console.error("❌ API Error:", err);
     return null;
   }
 }
@@ -137,7 +137,7 @@ async function getPresenceNumber(sensorId = SENSOR_ID) {
     }
   }
 
-  console.log(`\n🆔 Sensor ID: ${sensorId}`);
+  console.log(`\n🆔 Sensor ID: ${sensorId} ${presenceCount2?.value + presenceCount1?.value + "0"}`);
 
   const finalCount = presenceCount2?.value || presenceCount1?.value || "0";
   return parseInt(finalCount, 10);

@@ -47,7 +47,6 @@ export default class AranetDataService {
     });
 
     if (!response.ok) {
-      console.log("response",response)
       throw new Error(`HTTP ${response.status}: ${response.statusText}`);
     }
 
@@ -235,7 +234,6 @@ export default class AranetDataService {
 
   // 🟢 Total Energy (Month)
   if(!data?.readings?.length) {
-    console.log("data",data)
     return {
     month:{energy:'0',
     cost:'0',
@@ -298,23 +296,7 @@ export default class AranetDataService {
   // Calculate day savings (previous day cost - current day cost)
   const daySaving = previousDayPrice - lastDayPrice;
   const daySavingFormatted = daySaving.toString() ;
-  console.log("dataaaa",{
-    month:{
-      energy: lastMonthEnergyKwh.toString(),
-      cost: totalPrice.toString(),
-      saving: '0' // Month saving is set to 0 as requested
-    },
-    week:{
-      energy: lastWeekEnergyKwh.toString(),
-      cost: lastWeekPrice.toString(),
-      saving: weekSavingFormatted
-    },
-    day:{
-      energy: lastDayEnergyKwh.toString(),
-      cost: lastDayPrice.toString(),
-      saving: daySavingFormatted
-    }
-  })
+ 
   return {
     month:{
       energy: lastMonthEnergyKwh.toString(),

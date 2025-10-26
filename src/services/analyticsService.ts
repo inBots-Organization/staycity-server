@@ -177,7 +177,7 @@ export class AnalyticsService {
           const totalDevices = processedDevices.length;
           const onlineDevices = processedDevices.filter(d => d.status === 'ONLINE').length;
           const offlineDevices = processedDevices.filter(d => d.status === 'OFFLINE').length;
-          console.log("room",room)
+       
           const powerDevices = await prisma.device.findMany({
             where: {
               roomId: room.id,
@@ -189,11 +189,11 @@ export class AnalyticsService {
           if(powerDevices.length > 0){
             const powerDevice = powerDevices[0]
             const currentEnergy = await this.aranetService.getSensorData(powerDevice.externalId || '', powerDevice.part);
-            console.log("currentEnergy",currentEnergy)
+            
             currentPower =currentEnergy.readings.filter((el)=>el.metricId ===process.env.POWER_METRES_ID )[0]?.value || 0
           }
           
-          console.log(currentPower)
+          
           processedRooms.push({
             id: room.id,
             name: room.name,
@@ -305,8 +305,7 @@ toDate.setMonth(toDate.getMonth() - 1);
 const toStr = from.toISOString().split('.')[0] + 'Z';
 const  fromStr= toDate.toISOString().split('.')[0] + 'Z';
 
-console.log("from:", fromStr);
-console.log("to:", toStr);
+
 const powerDevisesIds = powerDevises.map((d)=>d.externalId)
     
     // Get electricity analytics for all power sensors and combine them
@@ -365,7 +364,7 @@ const powerDevisesIds = powerDevises.map((d)=>d.externalId)
       totalEnergy: totalEnergy.toFixed(2),
       electricityAnalytics
     };
-    console.log("summary",summary)
+    
     return {
       timestamp,
       buildings: processedBuildings,
