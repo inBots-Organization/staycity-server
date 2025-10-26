@@ -1,5 +1,6 @@
 import axios, { AxiosResponse } from "axios";
 import crypto from "crypto";
+import prisma from "../config/prisma";
 import { refreshAqaraToken } from "./aqaraDataService";
 require("dotenv").config();
 
@@ -51,9 +52,15 @@ async function buildHeaders(): Promise<AqaraHeader> {
   const now = Date.now().toString();
   const n = nonce();
   // Get a fresh access token using the refreshAqaraToken function
-  const result = await refreshAqaraToken();
-  const accessToken = result.accessToken
-  
+  // const result = await refreshAqaraToken();
+  // const accessToken = result.accessToken
+  const user = await prisma.user.findUnique({
+    where: {
+      id: "cmffdevpf0001ijp5xxxe85pf",
+    },
+  });
+
+  const accessToken = user?.accessToken;
   const headers: AqaraHeader = {
     "Content-Type": "application/json",
     Accesstoken: accessToken,
@@ -91,8 +98,9 @@ async function callApi<T>(intent: string, data: Record<string, any> = {}): Promi
       headers,
       validateStatus: () => true,
     });
-
+ 
     if (res.status !== 200 || res.data.code !== 0) {
+      console.log("res",res)
       throw new Error(`API Error ${res.data.code}: ${res.data.message}`);
     }
 
@@ -117,16 +125,16 @@ export async function getCurrentPresence(sensorId: string): Promise<number> {
   }
 
   const presenceCount1 = values.find(
-    (v) => v.subjectId === sensorId && v.resourceId === "0.60.85"
+    (v) => v.subjectId === sensorId 
   );
-  const presenceCount2 = values.find(
-    (v) => v.subjectId === sensorId && v.resourceId === "0.61.85"
-  );
+  // const presenceCount2 = values.find(
+  //   (v) => v.subjectId === sensorId && v.resourceId === "0.61.85"
+  // );
 
-  const finalCount = presenceCount2?.value || presenceCount1?.value || "0";
+  const finalCount = presenceCount1?.value || "0";
   const count = parseInt(finalCount, 10);
 
-  
+  console.log("count",presenceCount1)
   return count;
 }
 

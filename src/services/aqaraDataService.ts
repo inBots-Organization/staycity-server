@@ -182,9 +182,16 @@ export default class AqaraDataService {
     const n = this.nonce();
 
     // Use the exported refreshAqaraToken function to get a fresh token
-    const result = await refreshAqaraToken();
-    const accessToken = result.accessToken
-    console.log(accessToken);
+    // const result = await refreshAqaraToken();
+    // const accessToken = result.accessToken
+    // console.log(accessToken);
+    const user = await prisma.user.findUnique({
+      where: {
+        id: "cmffdevpf0001ijp5xxxe85pf",
+      },
+    });
+    
+    const accessToken = user?.accessToken;
 
     // Store the token for future use
     this.accessToken = accessToken;
@@ -256,7 +263,14 @@ export default class AqaraDataService {
           );
 
           // Force a new token by directly calling refreshAqaraToken
-          this.accessToken = await refreshAqaraToken();
+          // this.accessToken = await refreshAqaraToken();
+          const user = await prisma.user.findUnique({
+            where: {
+              id: "cmffdevpf0001ijp5xxxe85pf",
+            },
+          });
+          
+          const accessToken = user?.accessToken;
 
           // Retry the API call with the new token
           return this.callApi(intent, data, retryCount + 1);
@@ -396,7 +410,7 @@ export default class AqaraDataService {
         },
       },
     })
-   console.log("devices2",devices2)
+  
     const devices = devices2.map((d) => {
       // if (!this.READABLE_IDS.has(d.id)) {
       //   return {
@@ -409,10 +423,10 @@ export default class AqaraDataService {
       //     data: null,
       //   };
       // }
-     console.log(this.RID.MOTION)
+    
       const ridMap = map[d.externalId] || {};
       const motion = this.toBool01(ridMap[this.RID.MOTION]);
-      console.log("motion",motion)
+      
       const battery = this.toNum(ridMap[this.RID.BATTERY]);
       const rssi = this.toNum(ridMap[this.RID.RSSI]);
       const lux = this.toNum(ridMap[this.RID.LUX]);

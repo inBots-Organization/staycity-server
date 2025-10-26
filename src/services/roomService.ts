@@ -204,14 +204,14 @@ export class RoomService {
           
           let aqaraDataList =
             await this.aqaraService.getMultipleSensorsData(aqaraSensors);
-            console.log("aqaraDataList",aqaraDataList)
+           
            aqaraDataList= await Promise.all(aqaraDataList.map(async d=>{
       
       if (d.sensorType==="MOTION"){
         const presence = await getCurrentPresence(d.sensorId);
-        console.log("getCurrentPresence",presence)
+       
         d.motionNumber=presence
-        console.log("d",d)
+       
         return d
       }
     }))

@@ -16,7 +16,7 @@ function setupAqaraTokenRefreshJob(): void {
       const result = await refreshAqaraToken();
       await prisma.user.update({
         where: { id: 'cmffdevpf0001ijp5xxxe85pf' },
-        data: { refreshToken: result.refreshToken },
+        data: { refreshToken: result.refreshToken ,accessToken: result.accessToken},
       });
       logger.info('Aqara token refresh completed successfully');
     } catch (error) {
