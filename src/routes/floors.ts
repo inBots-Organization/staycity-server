@@ -132,6 +132,8 @@ const validateBuildingId = [
  *                       type: integer
  */
 router.get('/', validateListFloors, floorController.listFloors);
+// Energy comparison for floors (last month) - must be BEFORE '/:id'
+router.get('/floorComparision', floorController.floorComparision);
 
 /**
  * @swagger
