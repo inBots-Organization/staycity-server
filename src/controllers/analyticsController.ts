@@ -38,3 +38,16 @@ export const getBuildingAnalytics = async (
     responseError(res, 'Failed to retrieve building analytics', 500, error.message);
   }
 };
+
+export const getElectricityAnalytics = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  try {
+    const electricityAnalytics = await AnalyticsService.getElectricityAnalytics();
+    responseSuccess(res, 'Electricity analytics retrieved successfully', electricityAnalytics);
+  } catch (error: any) {
+    console.error('Error in getElectricityAnalytics:', error);
+    responseError(res, 'Failed to retrieve electricity analytics', 500, error.message);
+  }
+};
