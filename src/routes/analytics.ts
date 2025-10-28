@@ -387,4 +387,106 @@ router.get('/comprehensive', analyticsController.getComprehensiveAnalytics);
  */
 router.get('/buildings/:buildingId', validateBuildingId, analyticsController.getBuildingAnalytics);
 
+/**
+ * @swagger
+ * /api/analytics/electricity:
+ *   get:
+ *     summary: Get electricity analytics for all power devices
+ *     tags: [Analytics]
+ *     description: |
+ *       Returns electricity consumption analytics including:
+ *       - Energy consumption data for the last month, week, and day
+ *       - Cost calculations based on energy usage
+ *       - Savings information
+ *       - Total number of power devices monitored
+ *     responses:
+ *       200:
+ *         description: Electricity analytics retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Electricity analytics retrieved successfully"
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     timestamp:
+ *                       type: string
+ *                       format: date-time
+ *                       description: When the data was collected
+ *                       example: "2025-10-28T10:30:00.000Z"
+ *                     totalDevices:
+ *                       type: integer
+ *                       description: Total number of power devices monitored
+ *                       example: 15
+ *                     electricityAnalytics:
+ *                       type: object
+ *                       properties:
+ *                         month:
+ *                           type: object
+ *                           properties:
+ *                             energy:
+ *                               type: string
+ *                               description: Energy consumption for the month in kWh
+ *                               example: "1250.75"
+ *                             cost:
+ *                               type: string
+ *                               description: Cost for the month in currency units
+ *                               example: "187.61"
+ *                             saving:
+ *                               type: string
+ *                               description: Savings for the month
+ *                               example: "25.40"
+ *                         week:
+ *                           type: object
+ *                           properties:
+ *                             energy:
+ *                               type: string
+ *                               description: Energy consumption for the week in kWh
+ *                               example: "312.50"
+ *                             cost:
+ *                               type: string
+ *                               description: Cost for the week in currency units
+ *                               example: "46.88"
+ *                             saving:
+ *                               type: string
+ *                               description: Savings for the week
+ *                               example: "6.35"
+ *                         day:
+ *                           type: object
+ *                           properties:
+ *                             energy:
+ *                               type: string
+ *                               description: Energy consumption for the day in kWh
+ *                               example: "44.64"
+ *                             cost:
+ *                               type: string
+ *                               description: Cost for the day in currency units
+ *                               example: "6.70"
+ *                             saving:
+ *                               type: string
+ *                               description: Savings for the day
+ *                               example: "0.91"
+ *       500:
+ *         description: Failed to retrieve electricity analytics
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: false
+ *                 message:
+ *                   type: string
+ *                   example: "Failed to retrieve electricity analytics"
+ */
+router.get('/electricity', analyticsController.getElectricityAnalytics);
+
 export default router;

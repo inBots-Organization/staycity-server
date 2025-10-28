@@ -1,6 +1,6 @@
 import { prisma } from '../config/prisma';
 import { BuildingStatus, RoomType, RoomStatus, DeviceStatus } from '../generated/prisma';
-import AranetDataService, { SensorData, SensorDevice } from './aranetDataService';
+import AranetDataService, { SensorData } from './aranetDataService';
 import AqaraDataService from './aqaraDataService';
 import {getCurrentPresence} from './getPrecenceNumber';
 interface DeviceWithMetrics {
@@ -77,6 +77,58 @@ export class AnalyticsService {
   private static aranetService = new AranetDataService();
   private static aqaraService = new AqaraDataService();
 
+  // Helper method to calculate metrics for a collection of rooms
+  private static calculateRoomMetrics(rooms: any[]) {
+    return {
+      totalRooms: rooms.length,
+      availableRooms: rooms.filter(r => r.status === 'AVAILABLE').length,
+      occupiedRooms: rooms.filter(r => r.status === 'OCCUPIED').length,
+      totalDevices: rooms.reduce((sum, room) => sum + room.totalDevices, 0),
+      onlineDevices: rooms.reduce((sum, room) => sum + room.onlineDevices, 0),
+      offlineDevices: rooms.reduce((sum, room) => sum + room.offlineDevices, 0),
+    };
+  }
+
+  // Helper method to calculate device metrics
+  private static calculateDeviceMetrics(devices: DeviceWithMetrics[]) {
+    return {
+      totalDevices: devices.length,
+      onlineDevices: devices.filter(d => d.status === 'ONLINE').length,
+      offlineDevices: devices.filter(d => d.status === 'OFFLINE').length,
+    };
+  }
+
+  // Helper method to batch fetch all sensor data
+  private static async fetchAllSensorData(allDevices: any[]) {
+    const aranetDevices = allDevices.filter(d => d.provider === 'aranet' && d.externalId);
+    const aqaraDevices = allDevices.filter(d => d.provider === 'aqara' && d.externalId);
+
+    const [aranetData, aqaraData] = await Promise.all([
+      aranetDevices.length > 0 
+        ? this.aranetService.getMultipleSensorsData(
+            aranetDevices.map(d => ({ id: d.externalId, part: d.part }))
+          ).catch(error => {
+            console.error('Error fetching Aranet data:', error);
+            return [];
+          })
+        : Promise.resolve([]),
+      aqaraDevices.length > 0
+        ? this.aqaraService.getMultipleSensorsData(
+            aqaraDevices.map(d => d.externalId)
+          ).catch(error => {
+            console.error('Error fetching Aqara data:', error);
+            return [];
+          })
+        : Promise.resolve([])
+    ]);
+
+    // Create lookup maps for faster access
+    const aranetDataMap = new Map(aranetData.map(data => [data.sensorId, data]));
+    const aqaraDataMap = new Map(aqaraData.map(data => [data.sensorId, data]));
+
+    return { aranetDataMap, aqaraDataMap };
+  }
+
   static async getComprehensiveAnalytics(): Promise<AnalyticsData> {
     const timestamp = new Date().toISOString();
 
@@ -100,147 +152,104 @@ export class AnalyticsService {
       },
     });
 
-    const processedBuildings: BuildingWithMetrics[] = [];
+    // Collect all devices for batch processing
+    const allDevices: any[] = [];
+    const roomDeviceMap = new Map<string, any[]>();
+    const powerDevicesByRoom = new Map<string, any>();
 
+    // First pass: collect all devices and power devices
     for (const building of buildings) {
-      const processedFloors: FloorWithMetrics[] = [];
-
       for (const floor of building.floors) {
-        const processedRooms: RoomWithMetrics[] = [];
-
         for (const room of floor.rooms) {
-          const processedDevices: DeviceWithMetrics[] = [];
-
-          // Group devices by provider for efficient batch processing
-          const aranetDevices = room.devices.filter(d => d.provider === 'aranet');
-          const aqaraDevices = room.devices.filter(d => d.provider === 'aqara');
-
-          // Fetch sensor data for Aranet devices
-          let aranetSensorData: SensorData[] = [];
-          if (aranetDevices.length > 0) {
-            try {
-              // Include both deviceIds array (legacy) and device externalIds with part info
-              const aranetSensors: SensorDevice[] = [
-                ...room.deviceIds.map(id => ({ id })), // Legacy deviceIds array
-                ...aranetDevices
-                  .filter(d => d.externalId)
-                  .map(d => ({ id: d.externalId!, part: d.part }))
-              ];
-
-              if (aranetSensors.length > 0) {
-                aranetSensorData = await this.aranetService.getMultipleSensorsData(aranetSensors);
-              }
-            } catch (error) {
-              console.error(`Error fetching Aranet data for room ${room.name}:`, error);
-            }
+          allDevices.push(...room.devices);
+          roomDeviceMap.set(room.id, room.devices);
+          
+          // Find power device for this room
+          const powerDevice = room.devices.find(d => 
+            d.provider === 'aranet' && d.deviceType === 'POWER'
+          );
+          if (powerDevice) {
+            powerDevicesByRoom.set(room.id, powerDevice);
           }
+        }
+      }
+    }
 
-          // Fetch sensor data for Aqara devices
-          let aqaraSensorData: SensorData[] = [];
-          if (aqaraDevices.length > 0) {
-            try {
-              const aqaraIds = aqaraDevices.map(d => d.externalId).filter(Boolean) as string[];
-              if (aqaraIds.length > 0) {
-                aqaraSensorData = await this.aqaraService.getMultipleSensorsData(aqaraIds);
-              }
-            } catch (error) {
-              console.error(`Error fetching Aqara data for room ${room.name}:`, error);
-            }
-          }
+    // Batch fetch all sensor data
+    const { aranetDataMap, aqaraDataMap } = await this.fetchAllSensorData(allDevices);
 
-          // Process each device and match with sensor data
-          for (const device of room.devices) {
+    // Get power data for all power devices in parallel
+    const powerDataPromises = Array.from(powerDevicesByRoom.entries()).map(async ([roomId, device]): Promise<[string, number]> => {
+      try {
+        const sensorData = aranetDataMap.get(device.externalId);
+        const currentPower = sensorData?.readings.find(r => r.metricId === process.env.POWER_METRES_ID)?.value || 0;
+        return [roomId, currentPower];
+      } catch (error) {
+        console.error(`Error fetching power data for room ${roomId}:`, error);
+        return [roomId, 0];
+      }
+    });
+
+    const powerDataResults = await Promise.all(powerDataPromises);
+    const powerDataMap = new Map<string, number>(powerDataResults);
+
+    // Process buildings with cached data
+    const processedBuildings: BuildingWithMetrics[] = buildings.map(building => {
+      const processedFloors: FloorWithMetrics[] = building.floors.map(floor => {
+        const processedRooms: RoomWithMetrics[] = floor.rooms.map(room => {
+          const devices = roomDeviceMap.get(room.id) || [];
+          
+          // Process devices with cached sensor data
+          const processedDevices: DeviceWithMetrics[] = devices.map(device => {
             let sensorData: SensorData | null = null;
 
             if (device.provider === 'aranet') {
-              sensorData = aranetSensorData.find(data => 
-                data.sensorId === device.externalId || 
-                room.deviceIds.includes(device.externalId || '')
-              ) || null;
+              sensorData = aranetDataMap.get(device.externalId) || null;
             } else if (device.provider === 'aqara') {
-              sensorData = aqaraSensorData.find(data => 
-                data.sensorId === device.externalId
-              ) || null;
+              sensorData = aqaraDataMap.get(device.externalId) || null;
             }
 
-            processedDevices.push({
+            return {
               id: device.id,
               name: device.name,
               externalId: device.externalId,
               provider: device.provider,
               status: device.status,
               sensorData,
-            });
-          }
+            };
+          });
 
-          // Calculate room metrics
-          const totalDevices = processedDevices.length;
-          const onlineDevices = processedDevices.filter(d => d.status === 'ONLINE').length;
-          const offlineDevices = processedDevices.filter(d => d.status === 'OFFLINE').length;
-       
-          const powerDevices = await prisma.device.findMany({
-            where: {
-              roomId: room.id,
-              provider: 'aranet',
-              deviceType: "POWER"
-            },
-          })
-          let currentPower = 0
-          if(powerDevices.length > 0){
-            const powerDevice = powerDevices[0]
-            const currentEnergy = await this.aranetService.getSensorData(powerDevice.externalId || '', powerDevice.part);
-            
-            currentPower =currentEnergy.readings.filter((el)=>el.metricId ===process.env.POWER_METRES_ID )[0]?.value || 0
-          }
-          
-          
-          processedRooms.push({
+          const deviceMetrics = this.calculateDeviceMetrics(processedDevices);
+          const currentPower = powerDataMap.get(room.id) || 0;
+
+          return {
             id: room.id,
             name: room.name,
             type: room.type,
             status: room.status,
             capacity: room.capacity,
             devices: processedDevices,
-            currentPower:currentPower || 0,
-            totalDevices,
-            onlineDevices,
-            offlineDevices,
-          });
-        }
-       
+            currentPower,
+            ...deviceMetrics,
+          };
+        });
 
-        // Calculate floor metrics
-        const totalRooms = processedRooms.length;
-        const availableRooms = processedRooms.filter(r => r.status === 'AVAILABLE').length;
-        const occupiedRooms = processedRooms.filter(r => r.status === 'OCCUPIED').length;
-        const totalDevices = processedRooms.reduce((sum, room) => sum + room.totalDevices, 0);
-        const onlineDevices = processedRooms.reduce((sum, room) => sum + room.onlineDevices, 0);
-        const offlineDevices = processedRooms.reduce((sum, room) => sum + room.offlineDevices, 0);
+        const floorMetrics = this.calculateRoomMetrics(processedRooms);
 
-        processedFloors.push({
+        return {
           id: floor.id,
           name: floor.name,
           level: floor.level,
           rooms: processedRooms,
-          totalRooms,
-          availableRooms,
-          occupiedRooms,
-          totalDevices,
-          onlineDevices,
-          offlineDevices,
-        });
-      }
+          ...floorMetrics,
+        };
+      });
 
-      // Calculate building metrics
-      const totalFloors = processedFloors.length;
-      const totalRooms = processedFloors.reduce((sum, floor) => sum + floor.totalRooms, 0);
-      const availableRooms = processedFloors.reduce((sum, floor) => sum + floor.availableRooms, 0);
-      const occupiedRooms = processedFloors.reduce((sum, floor) => sum + floor.occupiedRooms, 0);
-      const totalDevices = processedFloors.reduce((sum, floor) => sum + floor.totalDevices, 0);
-      const onlineDevices = processedFloors.reduce((sum, floor) => sum + floor.onlineDevices, 0);
-      const offlineDevices = processedFloors.reduce((sum, floor) => sum + floor.offlineDevices, 0);
+      const buildingMetrics = this.calculateRoomMetrics(
+        processedFloors.flatMap(f => f.rooms)
+      );
 
-      processedBuildings.push({
+      return {
         id: building.id,
         name: building.name,
         address: building.address,
@@ -250,111 +259,54 @@ export class AnalyticsService {
         city: building.city,
         country: building.country,
         floors: processedFloors,
-        totalFloors,
-        totalRooms,
-        availableRooms,
-        occupiedRooms,
-        totalDevices,
-        onlineDevices,
-        offlineDevices,
-      });
-    }
-    //get the average energy for the app
-
-    //get the aranet devises
-    const aranetDevises =await prisma.device.findMany({
-      where: {
-        provider: 'aranet',
-      }
-    })
-    const aranetDevisesIds=aranetDevises.map((d)=>({ id: d.externalId!, part: d.part }))
+        totalFloors: processedFloors.length,
+        ...buildingMetrics,
+      };
+    });
+    // Calculate energy metrics using already fetched data
+    const aranetDevices = allDevices.filter(d => d.provider === 'aranet' && d.externalId);
     let total = 0;
-  let count = 0;
-    if(aranetDevisesIds.length>0){
-      const data = await this.aranetService.getMultipleSensorsData(aranetDevisesIds)    
-      const reading = data.map((el)=>el.readings)
-      
-      
+    let count = 0;
 
-  reading.forEach(deviceMetrics => {
-    deviceMetrics.forEach(metric => {
-      if (metric.metricId === process.env.POWER_METRES_ID ) {
-        total += metric.value;
-        count++;
+    // Use already fetched aranet data for energy calculations
+    aranetDevices.forEach(device => {
+      const sensorData = aranetDataMap.get(device.externalId);
+      if (sensorData?.readings) {
+        sensorData.readings.forEach(metric => {
+          if (metric.metricId === process.env.POWER_METRES_ID) {
+            total += metric.value;
+            count++;
+          }
+        });
       }
     });
-  });
-       
-        
-    }
-    const averageEnergy = total/count || 0;
+
+    const averageEnergy = count > 0 ? total / count : 0;
     const totalEnergy = total;
-    //calculate the last [day - week - month] energy and energy cost
-    const powerDevises = await prisma.device.findMany({
-      where: {
-        deviceType: "POWER",
+
+
+    // Get motion devices for presence calculation (parallel processing)
+    const motionDevices = allDevices.filter(d => d.deviceType === 'MOTION' && d.externalId);
+    const motionDeviceIds = motionDevices.map(d => d.externalId).filter(Boolean);
+    
+    const presencePromises = motionDeviceIds.map(async (id) => {
+      try {
+        return await getCurrentPresence(id);
+      } catch (error) {
+        console.error(`Error getting presence for device ${id}:`, error);
+        return 0;
       }
-    })
-    const from = new Date();
-
-// clone it and subtract one month
-const toDate = new Date(from);
-toDate.setMonth(toDate.getMonth() - 1);
-
-// convert both to ISO strings (without milliseconds)
-const toStr = from.toISOString().split('.')[0] + 'Z';
-const  fromStr= toDate.toISOString().split('.')[0] + 'Z';
-
-
-const powerDevisesIds = powerDevises.map((d)=>d.externalId)
+    });
     
-    // Get electricity analytics for all power sensors and combine them
-    let totalElectricityAnalytics = {
-      month: { energy: "0", cost: "0", saving: "0" },
-      week: { energy: "0", cost: "0", saving: "0" },
-      day: { energy: "0", cost: "0", saving: "0" }
-    };
-    
-    // Process all power devices
-    for (const deviceId of powerDevisesIds) {
-      const sensorAnalytics = await this.aranetService.getElectricityAnalytics(
-        deviceId,
-        process.env.POWER_METRES_ID,
-        fromStr,
-        toStr
-      );
-      
-      // Add values to the total
-      totalElectricityAnalytics.month.energy = (parseFloat(totalElectricityAnalytics.month.energy) + parseFloat(sensorAnalytics.month.energy)).toFixed(2);
-      totalElectricityAnalytics.month.cost = (parseFloat(totalElectricityAnalytics.month.cost) + parseFloat(sensorAnalytics.month.cost)).toFixed(2);
-      totalElectricityAnalytics.month.saving = (parseFloat(totalElectricityAnalytics.month.saving) + parseFloat(sensorAnalytics.month.saving)).toFixed(2);
-
-      totalElectricityAnalytics.week.energy = (parseFloat(totalElectricityAnalytics.week.energy) + parseFloat(sensorAnalytics.week.energy)).toFixed(2);
-      totalElectricityAnalytics.week.cost = (parseFloat(totalElectricityAnalytics.week.cost) + parseFloat(sensorAnalytics.week.cost)).toFixed(2);
-      totalElectricityAnalytics.week.saving = (parseFloat(totalElectricityAnalytics.week.saving) + parseFloat(sensorAnalytics.week.saving)).toFixed(2);
-      totalElectricityAnalytics.day.energy = (parseFloat(totalElectricityAnalytics.day.energy) + parseFloat(sensorAnalytics.day.energy)).toFixed(2);
-      totalElectricityAnalytics.day.cost = (parseFloat(totalElectricityAnalytics.day.cost) + parseFloat(sensorAnalytics.day.cost)).toFixed(2);
-      totalElectricityAnalytics.day.saving = (parseFloat(totalElectricityAnalytics.day.saving) + parseFloat(sensorAnalytics.day.saving)).toFixed(2);
-    }
-    
-    const electricityAnalytics = totalElectricityAnalytics;
-    
-    // Calculate overall summary
-    //calculate the personce number
-    const motionDevises = await prisma.device.findMany({
-      where: {
-        deviceType: "MOTION",
-      }
-    })
-    const motionDevisesIds = motionDevises.map((d)=>d.externalId)
-    const presenceNumber = await Promise.all(motionDevisesIds.map(async (id)=>await getCurrentPresence(id!)))
-    console.log("presenceNumber",presenceNumber.reduce((sum, num) => sum + num, 0))
+    const presenceNumbers = await Promise.all(presencePromises);
+    const totalPresence = presenceNumbers.reduce((sum, num) => sum + num, 0);
+    console.log("presenceNumber", totalPresence);
     const summary = {
       totalBuildings: processedBuildings.length,
       totalFloors: processedBuildings.reduce((sum, building) => sum + building.totalFloors, 0),
       totalRooms: processedBuildings.reduce((sum, building) => sum + building.totalRooms, 0),
       availableRooms: processedBuildings.reduce((sum, building) => sum + building.availableRooms, 0),
-      occupiedRooms: presenceNumber.reduce((sum, num) => sum + num, 0),
+      occupiedRooms: totalPresence,
       totalDevices: processedBuildings.reduce((sum, building) => sum + building.totalDevices, 0),
       onlineDevices: processedBuildings.reduce((sum, building) => sum + building.onlineDevices, 0),
       offlineDevices: processedBuildings.reduce((sum, building) => sum + building.offlineDevices, 0),
@@ -362,13 +314,75 @@ const powerDevisesIds = powerDevises.map((d)=>d.externalId)
       aqaraDevices: this.countDevicesByProvider(processedBuildings, 'aqara'),
       averageEnergy: averageEnergy.toFixed(2),
       totalEnergy: totalEnergy.toFixed(2),
-      electricityAnalytics
+      // electricityAnalytics: totalElectricityAnalytics
+     
+    
     };
     
     return {
       timestamp,
       buildings: processedBuildings,
       summary,
+    };
+  }
+
+  static async getElectricityAnalytics() {
+    // Get all power devices
+    const powerDevices = await prisma.device.findMany({
+      where: {
+        deviceType: "POWER",
+        externalId: { not: null }
+      }
+    });
+
+    const powerDeviceIds = powerDevices.map(d => d.externalId).filter(Boolean) as string[];
+
+    // Calculate date range for analytics
+    const from = new Date();
+    const toDate = new Date(from);
+    toDate.setMonth(toDate.getMonth() - 1);
+    const toStr = from.toISOString().split('.')[0] + 'Z';
+    const fromStr = toDate.toISOString().split('.')[0] + 'Z';
+
+    // Batch process electricity analytics in parallel
+    const electricityAnalyticsPromises = powerDeviceIds.map(async (deviceId) => {
+      try {
+        return await this.aranetService.getElectricityAnalytics(
+          deviceId,
+          process.env.POWER_METRES_ID!,
+          fromStr,
+          toStr
+        );
+      } catch (error) {
+        console.error(`Error fetching electricity analytics for device ${deviceId}:`, error);
+        return {
+          month: { energy: "0", cost: "0", saving: "0" },
+          week: { energy: "0", cost: "0", saving: "0" },
+          day: { energy: "0", cost: "0", saving: "0" }
+        };
+      }
+    });
+
+    const electricityResults = await Promise.all(electricityAnalyticsPromises);
+
+    // Aggregate electricity analytics
+    const totalElectricityAnalytics = electricityResults.reduce((acc, analytics) => {
+      ['month', 'week', 'day'].forEach(period => {
+        acc[period].energy = (parseFloat(acc[period].energy) + parseFloat(analytics[period].energy)).toFixed(2);
+        acc[period].cost = (parseFloat(acc[period].cost) + parseFloat(analytics[period].cost)).toFixed(2);
+        acc[period].saving = (parseFloat(acc[period].saving) + parseFloat(analytics[period].saving)).toFixed(2);
+      });
+      return acc;
+    }, {
+      month: { energy: "0", cost: "0", saving: "0" },
+      week: { energy: "0", cost: "0", saving: "0" },
+      day: { energy: "0", cost: "0", saving: "0" }
+    });
+
+    return {
+      timestamp: new Date().toISOString(),
+      totalDevices: powerDeviceIds.length,
+      electricityAnalytics: totalElectricityAnalytics
     };
   }
 
