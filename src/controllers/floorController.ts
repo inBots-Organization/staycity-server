@@ -191,8 +191,9 @@ export const floorComparision = async (
       from = fromDate.toISOString();
       to = now.toISOString();
     }
-
-    const PRICE_PER_KWH = 0.16;
+     const systemSettings = await prisma.systemSettings.findFirst();
+    // const PRICE_PER_KWH = 0.16;
+    const PRICE_PER_KWH = systemSettings?.pricePerKwh || 0;
     const POWER_METRIC = process.env.POWER_METRES_ID as string | undefined;
 
     if (!POWER_METRIC) {

@@ -1,3 +1,4 @@
+import prisma from '../config/prisma';
 export interface SensorReading {
   metricId: string;
   metricName: string;
@@ -209,8 +210,9 @@ export default class AranetDataService {
   cost: string;
   saving: string; }
 }> {
-  const PRICE_PER_KWH = 0.16;
-
+  // const PRICE_PER_KWH = 0.16;
+  const systemSettings = await prisma.systemSettings.findFirst();
+  const PRICE_PER_KWH = systemSettings?.pricePerKwh || 0;
   const data = await this.makeRequest('/telemetry/history', {
     sensor: sensorId,
     metric,
@@ -328,8 +330,9 @@ export default class AranetDataService {
   day:{energy: string; 
   cost: string; }
 }> {
-  const PRICE_PER_KWH = 0.16;
-
+  // const PRICE_PER_KWH = 0.16;
+  const systemSettings = await prisma.systemSettings.findFirst();
+  const PRICE_PER_KWH = systemSettings?.pricePerKwh || 0;
   const data = await this.makeRequest('/telemetry/history', {
     sensor: sensorId,
     metric,

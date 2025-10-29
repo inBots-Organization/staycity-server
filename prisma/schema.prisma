@@ -255,9 +255,9 @@ model SystemSettings {
   id        String   @id @default(cuid())
 
   // ⚡ Energy Levels
-  lowMaxKw      Int
-  mediumMaxKw   Int
-  highMaxKw     Int
+  lowMaxKw      Float
+  mediumMaxKw   Float
+  highMaxKw     Float
 
   // 🔥 Heatmap & Alerts
   showEnergy      Boolean @default(true)
@@ -265,24 +265,24 @@ model SystemSettings {
   showTemperature Boolean @default(true)
 
   // 🫁 CO₂ Thresholds
-  co2WarningPpm  Int
-  co2CriticalPpm Int
-  co2DebounceSec Int
+  co2WarningPpm  Float
+  co2CriticalPpm Float
+  co2DebounceSec Float
 
   // 🌡️ Temperature Thresholds
   tempUnit        String   @default("Celsius") // أو نعمل enum
-  tempHighWarning Int
-  tempHighCritical Int
-  tempLowWarning  Int
-  tempLowCritical Int
-  tempDebounceSec Int
+  tempHighWarning Float
+  tempHighCritical Float
+  tempLowWarning  Float
+  tempLowCritical Float
+  tempDebounceSec Float
 
   // ⚙️ Automation Logic & Timers
-  entryConfirmedSec     Int
-  absenceTimeMin        Int
-  doorOnlyTimeoutMin    Int
-  sensorBatteryTimeoutH Int
-
+  entryConfirmedSec     Float
+  absenceTimeMin        Float
+  doorOnlyTimeoutMin    Float
+  sensorBatteryTimeoutH Float
+  pricePerKwh Float @default(0)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
