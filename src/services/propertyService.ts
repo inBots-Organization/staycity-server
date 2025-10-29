@@ -120,6 +120,7 @@ export class PropertyService {
           city: true,
           country: true,
           stats: true,
+          _count: { select: { floors: true, rooms: true } },
         },
       }),
       prisma.building.count({ where }),
