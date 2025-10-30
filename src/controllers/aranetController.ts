@@ -12,7 +12,7 @@ type Log = {
   value?: number;
 };
 
-export const aggregateLogsByDay = (logs: Log[]): Log[] => {
+export const aggregateLogsByDay = (logs: Log[], metricType: 'power' | 'other' = 'other'): Log[] => {
   const grouped: Record<string, { total: number; count: number; sample: Log }> = {};
 
   for (const log of logs) {
@@ -33,7 +33,8 @@ export const aggregateLogsByDay = (logs: Log[]): Log[] => {
     sensor: data.sample.sensor ?? "",
     unit: data.sample.unit ?? "",
     time: `${day}T00:00:00Z`,
-    value: parseFloat((data.total ).toFixed(2)), // average for the day
+    // For power: use total sum, for others: use average
+    value: parseFloat((metricType === 'power' ? data.total : data.total / data.count).toFixed(2)),
   }));
 
   aggregated.sort((a, b) => new Date(a.time!).getTime() - new Date(b.time!).getTime());
@@ -130,7 +131,7 @@ export const getHomeLogs = async (req: Request, res: Response): Promise<void> =>
         
           return  logs.readings;
     }))
-    const realAggregate = aggregateLogsByDay(data.flat())
+    const realAggregate = aggregateLogsByDay(data.flat(), type === 'power' ? 'power' : 'other')
     responseSuccess(res, 'Historical readings retrieved successfully', realAggregate);
   } catch (error: any) {
     responseError(res, 'Failed to fetch historical readings', 500, error.message);
