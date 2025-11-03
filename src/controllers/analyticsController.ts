@@ -51,3 +51,27 @@ export const getElectricityAnalytics = async (
     responseError(res, 'Failed to retrieve electricity analytics', 500, error.message);
   }
 };
+
+export const getCurrentSensorDataByFloor = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  try {
+    const { buildingId, floorId } = req.params;
+    
+    if (!buildingId || !floorId) {
+      responseError(res, 'Building ID and Floor ID are required', 400);
+      return;
+    }
+
+    const sensorData = await AnalyticsService.getCurrentSensorDataByFloor(buildingId, floorId);
+    responseSuccess(res, 'Current sensor data retrieved successfully', sensorData);
+  } catch (error: any) {
+    if (error.message === 'Building not found' || error.message === 'Floor not found') {
+      responseError(res, error.message, 404);
+      return;
+    }
+    console.error('Error in getCurrentSensorDataByFloor:', error);
+    responseError(res, 'Failed to retrieve current sensor data', 500, error.message);
+  }
+};

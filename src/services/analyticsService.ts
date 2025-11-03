@@ -182,7 +182,7 @@ export class AnalyticsService {
     const powerDataPromises = Array.from(powerDevicesByRoom.entries()).map(async ([roomId, device]): Promise<[string, number]> => {
       try {
         const sensorData = aranetDataMap.get(device.externalId);
-        const currentPower = sensorData?.readings.find(r => r.metricId === process.env.POWER_METRES_ID)?.value || 0;
+        const currentPower = sensorData?.readings.find(r => r.metricId === process.env['POWER_METRES_ID'])?.value || 0;
         return [roomId, currentPower];
       } catch (error) {
         console.error(`Error fetching power data for room ${roomId}:`, error);
@@ -273,7 +273,7 @@ export class AnalyticsService {
       const sensorData = aranetDataMap.get(device.externalId);
       if (sensorData?.readings) {
         sensorData.readings.forEach(metric => {
-          if (metric.metricId === process.env.POWER_METRES_ID) {
+          if (metric.metricId === process.env['POWER_METRES_ID']) {
             total += metric.value;
             count++;
           }
@@ -349,7 +349,7 @@ export class AnalyticsService {
       try {
         return await this.aranetService.getElectricityAnalytics(
           deviceId,
-          process.env.POWER_METRES_ID!,
+          process.env['POWER_METRES_ID']!,
           fromStr,
           toStr
         );
@@ -367,7 +367,7 @@ export class AnalyticsService {
 
     // Aggregate electricity analytics
     const totalElectricityAnalytics = electricityResults.reduce((acc, analytics) => {
-      ['month', 'week', 'day'].forEach(period => {
+      (['month', 'week', 'day'] as const).forEach(period => {
         acc[period].energy = (parseFloat(acc[period].energy) + parseFloat(analytics[period].energy)).toFixed(2);
         acc[period].cost = (parseFloat(acc[period].cost) + parseFloat(analytics[period].cost)).toFixed(2);
         acc[period].saving = (parseFloat(acc[period].saving) + parseFloat(analytics[period].saving)).toFixed(2);
@@ -418,6 +418,280 @@ export class AnalyticsService {
     }
 
     return buildingAnalytics;
+  }
+
+  static async getCurrentSensorDataByFloor(buildingId: string, floorId: string) {
+    const timestamp = new Date().toISOString();
+
+    // Fetch the specific building and floor with all rooms and devices
+    const building = await prisma.building.findUnique({
+      where: { id: buildingId },
+      include: {
+        floors: {
+          where: { id: floorId },
+          include: {
+            rooms: {
+              orderBy: { name: 'asc' },
+              include: {
+                devices: {
+                  orderBy: { name: 'asc' },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!building) {
+      throw new Error('Building not found');
+    }
+
+    if (!building.floors || building.floors.length === 0) {
+      throw new Error('Floor not found');
+    }
+
+    const floor = building.floors[0];
+    if (!floor) {
+      throw new Error('Floor not found');
+    }
+    
+    // Collect all devices from all rooms in this floor
+    const allDevices: any[] = [];
+    const roomDeviceMap = new Map<string, any[]>();
+
+    for (const room of floor.rooms) {
+      allDevices.push(...room.devices);
+      roomDeviceMap.set(room.id, room.devices);
+    }
+
+    // Batch fetch all sensor data using the optimized approach
+    const { aranetDataMap, aqaraDataMap } = await this.fetchAllSensorData(allDevices);
+
+    // Process rooms with current sensor data
+    const roomsWithSensorData: any[] = [];
+    
+    floor.rooms.forEach(room => {
+      const devices = roomDeviceMap.get(room.id) || [];
+      
+      if (room.type === 'SUITE') {
+        // For suites, split into two rooms based on environment sensor parts
+        const environmentSensors = devices.filter(d => d.deviceType === 'ENVIRONMENT');
+        const powerSensor = devices.find(d => d.deviceType === 'POWER');
+        
+        // Get unique parts from environment sensors
+        const parts = [...new Set(environmentSensors.map(d => d.part).filter(Boolean))];
+        
+        if (parts.length > 0) {
+          parts.forEach((part) => {
+            const partDevices = environmentSensors.filter(d => d.part === part);
+            
+            // Extract sensor readings for this part
+            const currentReadings = {
+              power: null as number | null,
+              temperature: null as number | null,
+              humidity: null as number | null,
+              pressure: null as number | null,
+              co2: null as number | null,
+            };
+
+            // Process environment sensors for this part
+            partDevices.forEach(device => {
+              let sensorData: SensorData | null = null;
+
+              if (device.provider === 'aranet' && device.externalId) {
+                sensorData = aranetDataMap.get(device.externalId) || null;
+              } else if (device.provider === 'aqara' && device.externalId) {
+                sensorData = aqaraDataMap.get(device.externalId) || null;
+              }
+
+              if (sensorData?.readings) {
+                sensorData.readings.forEach(reading => {
+                  console.log("metricName", reading.metricName);
+                  switch (reading.metricName?.toLowerCase()) {
+                    case 'temperature':
+                      currentReadings.temperature = reading.value;
+                      break;
+                    case 'humidity':
+                      currentReadings.humidity = reading.value;
+                      break;
+                    case 'atmospheric pressure':
+                      currentReadings.pressure = reading.value;
+                      break;
+                    case 'co₂':
+                    case 'carbon dioxide':
+                      currentReadings.co2 = reading.value;
+                      break;
+                  }
+                });
+              }
+            });
+
+            // Add power data (split between rooms if multiple parts)
+            if (powerSensor) {
+              const powerSensorData = aranetDataMap.get(powerSensor.externalId) || null;
+              if (powerSensorData?.readings) {
+                const powerReading = powerSensorData.readings.find(r => r.metricId === process.env['POWER_METRES_ID']);
+                if (powerReading) {
+                  // Divide power equally between suite rooms
+                  currentReadings.power = (powerReading.value / 1000) / parts.length;
+                }
+              }
+            }
+
+            roomsWithSensorData.push({
+              id: `${room.id}_${part}`,
+              name: `${room.name} - ${part}`,
+              type: room.type,
+              status: room.status,
+              capacity: Math.ceil(room.capacity / parts.length),
+              sensorReadings: currentReadings,
+              deviceCount: partDevices.length + (powerSensor ? 1 : 0),
+              onlineDevices: partDevices.filter(d => d.status === 'ONLINE').length + (powerSensor?.status === 'ONLINE' ? 1 : 0),
+              lastUpdate: timestamp,
+              originalRoomId: room.id,
+              part: part,
+            });
+          });
+        } else {
+          // Fallback for suites without parts - treat as single room
+          const currentReadings = {
+            power: null as number | null,
+            temperature: null as number | null,
+            humidity: null as number | null,
+            pressure: null as number | null,
+            co2: null as number | null,
+          };
+
+          devices.forEach(device => {
+            let sensorData: SensorData | null = null;
+
+            if (device.provider === 'aranet' && device.externalId) {
+              sensorData = aranetDataMap.get(device.externalId) || null;
+            } else if (device.provider === 'aqara' && device.externalId) {
+              sensorData = aqaraDataMap.get(device.externalId) || null;
+            }
+
+            if (sensorData?.readings) {
+              sensorData.readings.forEach(reading => {
+                console.log("metricName", reading.metricName);
+                switch (reading.metricName?.toLowerCase()) {
+                  case 'temperature':
+                    currentReadings.temperature = reading.value;
+                    break;
+                  case 'humidity':
+                    currentReadings.humidity = reading.value;
+                    break;
+                  case 'atmospheric pressure':
+                    currentReadings.pressure = reading.value;
+                    break;
+                  case 'co₂':
+                  case 'carbon dioxide':
+                    currentReadings.co2 = reading.value;
+                    break;
+                  default:
+                    if (reading.metricId === process.env['POWER_METRES_ID']) {
+                      currentReadings.power = reading.value / 1000;
+                    }
+                    break;
+                }
+              });
+            }
+          });
+
+          roomsWithSensorData.push({
+            id: room.id,
+            name: room.name,
+            type: room.type,
+            status: room.status,
+            capacity: room.capacity,
+            sensorReadings: currentReadings,
+            deviceCount: devices.length,
+            onlineDevices: devices.filter(d => d.status === 'ONLINE').length,
+            lastUpdate: timestamp,
+          });
+        }
+      } else {
+        // For regular rooms, process normally
+        const currentReadings = {
+          power: null as number | null,
+          temperature: null as number | null,
+          humidity: null as number | null,
+          pressure: null as number | null,
+          co2: null as number | null,
+        };
+
+        devices.forEach(device => {
+          let sensorData: SensorData | null = null;
+
+          if (device.provider === 'aranet' && device.externalId) {
+            sensorData = aranetDataMap.get(device.externalId) || null;
+          } else if (device.provider === 'aqara' && device.externalId) {
+            sensorData = aqaraDataMap.get(device.externalId) || null;
+          }
+
+          if (sensorData?.readings) {
+            sensorData.readings.forEach(reading => {
+              console.log("metricName", reading.metricName);
+              switch (reading.metricName?.toLowerCase()) {
+                case 'temperature':
+                  currentReadings.temperature = reading.value;
+                  break;
+                case 'humidity':
+                  currentReadings.humidity = reading.value;
+                  break;
+                case 'atmospheric pressure':
+                  currentReadings.pressure = reading.value;
+                  break;
+                case 'co₂':
+                case 'carbon dioxide':
+                  currentReadings.co2 = reading.value;
+                  break;
+                default:
+                  if (reading.metricId === process.env['POWER_METRES_ID']) {
+                    currentReadings.power = reading.value / 1000;
+                  }
+                  break;
+              }
+            });
+          }
+        });
+
+        roomsWithSensorData.push({
+          id: room.id,
+          name: room.name,
+          type: room.type,
+          status: room.status,
+          capacity: room.capacity,
+          sensorReadings: currentReadings,
+          deviceCount: devices.length,
+          onlineDevices: devices.filter(d => d.status === 'ONLINE').length,
+          lastUpdate: timestamp,
+        });
+      }
+    });
+
+    return {
+      timestamp,
+      building: {
+        id: building.id,
+        name: building.name,
+      },
+      floor: {
+        id: floor.id,
+        name: floor.name,
+        level: floor.level,
+      },
+      rooms: roomsWithSensorData,
+      summary: {
+        totalRooms: roomsWithSensorData.length,
+        roomsWithData: roomsWithSensorData.filter(r => 
+          Object.values(r.sensorReadings).some(v => v !== null)
+        ).length,
+        totalDevices: roomsWithSensorData.reduce((sum, r) => sum + r.deviceCount, 0),
+        onlineDevices: roomsWithSensorData.reduce((sum, r) => sum + r.onlineDevices, 0),
+      },
+    };
   }
 
   private static countDevicesByProvider(buildings: BuildingWithMetrics[], provider: string): number {
