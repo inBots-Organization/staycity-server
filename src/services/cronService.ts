@@ -3,19 +3,20 @@ import { logger } from '../config/logger';
 import { refreshAqaraToken } from './aqaraDataService';
 import  AranetDataService  from './aranetDataService';
 import prisma from '../config/prisma';
+import { logAllPresence } from './presenceLogger';
 
 const jobs: Map<string, cron.ScheduledTask> = new Map();
 
 /**
- * Aqara token refresh (runs daily at 00:01)
+ * Aqara token refresh (runs every 5 minutes)
  */
 function setupAqaraTokenRefreshJob(): void {
-  const job = cron.schedule('1 0 * * *', async () => {
+  const job = cron.schedule('0 0 * * *', async () => {
     try {
       logger.info('Running Aqara token refresh cron job');
       const result = await refreshAqaraToken();
-      await prisma.user.update({
-        where: { id: 'cmffdevpf0001ijp5xxxe85pf' },
+      console.log("result",result)
+      await prisma.user.updateMany({
         data: { refreshToken: result.refreshToken ,accessToken: result.accessToken},
       });
       logger.info('Aqara token refresh completed successfully');
@@ -106,6 +107,7 @@ function setupAranetDailyLogsJob(): void {
 export function initializeJobs(): void {
   setupAqaraTokenRefreshJob();
   setupAranetDailyLogsJob();
+  setupPresenceLoggingJob();
   logger.info('All cron jobs initialized');
 }
 
@@ -117,4 +119,30 @@ export function stopAllJobs(): void {
     job.stop();
     logger.info(`Stopped cron job: ${name}`);
   });
+}
+
+/**
+ * Presence logging job (runs every 2 minutes)
+ * Fetches presence values for all motion sensors and stores them in PresenceLog
+ */
+function setupPresenceLoggingJob(): void {
+  const job = cron.schedule('*/1 * * * *', async () => {
+    try {
+      logger.info('Running presence logging cron job');
+      const summary = await logAllPresence();
+      logger.info(
+        `Presence logging completed. Inserted: ${summary.inserted}, Failed: ${summary.failed}, Total: ${summary.total}`
+      );
+      if (summary.failed && summary.details?.length) {
+        summary.details.forEach((d: any) =>
+          logger.error(`Presence log failure for device ${d.deviceId || 'unknown'}: ${d.reason}`)
+        );
+      }
+    } catch (error) {
+      logger.error('Error in presence logging cron job:', error);
+    }
+  });
+
+  jobs.set('presenceLogging', job);
+  logger.info('Presence logging job scheduled');
 }
