@@ -353,3 +353,102 @@ export const floorComparision = async (
     responseError(res, 'Internal server error');
   }
 };
+
+export const getPresenceTrendForComparisonFloores = async (
+  req: Request,
+  res: Response
+) => {
+  try {
+    const { buildingId } = req.query as { buildingId?: string };
+    const qFrom = typeof req.query['from'] === 'string' ? (req.query['from'] as string) : '';
+    const qTo = typeof req.query['to'] === 'string' ? (req.query['to'] as string) : '';
+
+    // Resolve time range
+    const now = new Date();
+    let fromDate: Date;
+    let toDate: Date;
+    if (qFrom && qTo) {
+      const fromMs = Date.parse(qFrom);
+      const toMs = Date.parse(qTo);
+      if (Number.isNaN(fromMs) || Number.isNaN(toMs)) {
+        responseError(res, 'Invalid from/to date format. Use ISO 8601.', 400);
+        return;
+      }
+      fromDate = new Date(fromMs);
+      toDate = new Date(toMs);
+    } else {
+      toDate = now;
+      fromDate = new Date(now.getTime() - 48 * 60 * 60 * 1000); // default last 24h
+    }
+
+    // Bucketing is not used in the raw logs response
+
+    // Load floors (optionally filter by building)
+    const floorWhere: { buildingId?: string } = {};
+    if (buildingId) floorWhere.buildingId = String(buildingId);
+    const floors = await prisma.floor.findMany({
+      where: floorWhere,
+      orderBy: { level: 'asc' },
+      select: { id: true, name: true, level: true, buildingId: true },
+    });
+
+    if (floors.length === 0) {
+      responseSuccess(res, 'No floors found', { from: fromDate.toISOString(), to: toDate.toISOString(), floors: [] });
+      return;
+    }
+
+    // Fetch all presence logs in range for these floors
+    const logs = await prisma.presenceLog.findMany({
+      where: {
+        floorId: { in: floors.map(f => f.id) },
+        createdAt: { gte: fromDate, lte: toDate },
+      },
+      orderBy: { createdAt: 'asc' },
+      select: { createdAt: true, value: true, externalId: true, floorId: true },
+    });
+    
+
+    // Aggregate logs per floor per minute: sum values across sensors for the same minute
+    // Use key `${floorId}|${minuteEpoch}` where minuteEpoch is timestamp rounded to the minute
+    const perFloorMinute = new Map<string, number>();
+    logs.forEach((l) => {
+      const d = new Date(l.createdAt);
+      d.setSeconds(0, 0); // truncate to minute
+      const key = `${l.floorId}|${d.getTime()}`;
+      const prev = perFloorMinute.get(key) || 0;
+      perFloorMinute.set(key, prev + (Number.isFinite(l.value) ? l.value : 0));
+    });
+
+    // Group back by floor and produce points array
+    const logsByFloor = new Map<string, { value: number; createdAt: string }[]>();
+    perFloorMinute.forEach((sum, key) => {
+      const parts = key.split('|');
+      if (parts.length !== 2) return;
+      const floorId = parts[0] || '';
+      const epoch = Number(parts[1]);
+      if (!floorId || !Number.isFinite(epoch)) return;
+      const createdAt = new Date(epoch).toISOString();
+      const arr = logsByFloor.get(floorId) ?? [];
+      arr.push({ value: sum, createdAt });
+      logsByFloor.set(floorId, arr);
+    });
+
+    const resultFloors = floors.map((f) => ({
+      floorId: f.id,
+      name: f.name,
+      level: f.level,
+      points: (logsByFloor.get(f.id) || []).sort((a, b) => a.createdAt.localeCompare(b.createdAt)),
+    }));
+
+    responseSuccess(res, 'Presence logs retrieved successfully', {
+      from: fromDate.toISOString(),
+      to: toDate.toISOString(),
+      floors: resultFloors,
+    });
+  } catch (error) {
+    console.error('getPresenceTrendForComparisonFloores error:', error);
+    responseError(res, 'Internal server error');
+  }
+};
+
+  
