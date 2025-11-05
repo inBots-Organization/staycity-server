@@ -370,11 +370,102 @@ export const getRoomDevices = async (
     responseError(res, 'Internal server error');
   }
 };
-// export const script = async (
-//   req: Request,
-//   res: Response
-// ): Promise<void> => {
-//   try {
+
+export const getPresenceTrendForRoom = async (
+  req: Request,
+  res: Response
+) => {
+  try {
+    const { roomId } = req.query as { roomId?: string };
+    const qFrom = typeof req.query['from'] === 'string' ? (req.query['from'] as string) : '';
+    const qTo = typeof req.query['to'] === 'string' ? (req.query['to'] as string) : '';
+
+    if (!roomId) {
+      responseError(res, 'Room ID is required', 400);
+      return;
+    }
+
+    // Resolve time range
+    const now = new Date();
+    let fromDate: Date;
+    let toDate: Date;
+    if (qFrom && qTo) {
+      const fromMs = Date.parse(qFrom);
+      const toMs = Date.parse(qTo);
+      if (Number.isNaN(fromMs) || Number.isNaN(toMs)) {
+        responseError(res, 'Invalid from/to date format. Use ISO 8601.', 400);
+        return;
+      }
+      fromDate = new Date(fromMs);
+      toDate = new Date(toMs);
+    } else {
+      toDate = now;
+      fromDate = new Date(now.getTime() - 48 * 60 * 60 * 1000); // default last 48h
+    }
+
+    // Verify room exists
+    const room = await prisma.room.findUnique({
+      where: { id: String(roomId) },
+      select: { id: true, name: true, type: true, capacity: true },
+    });
+
+    if (!room) {
+      responseError(res, 'Room not found', 404);
+      return;
+    }
+
+    // Fetch all presence logs in range for this room
+    const logs = await prisma.presenceLog.findMany({
+      where: {
+        roomId: String(roomId),
+        createdAt: { gte: fromDate, lte: toDate },
+      },
+      orderBy: { createdAt: 'asc' },
+      select: { createdAt: true, value: true, externalId: true },
+    });
+
+    // Aggregate logs per minute: sum values across sensors for the same minute
+    // Use key `${minuteEpoch}` where minuteEpoch is timestamp rounded to the minute
+    const perMinute = new Map<string, number>();
+    logs.forEach((l) => {
+      const d = new Date(l.createdAt);
+      d.setSeconds(0, 0); // truncate to minute
+      const key = d.getTime().toString();
+      const prev = perMinute.get(key) || 0;
+      perMinute.set(key, prev + (Number.isFinite(l.value) ? l.value : 0));
+    });
+
+    // Convert to points array
+    const points: { value: number; createdAt: string }[] = [];
+    perMinute.forEach((sum, epochStr) => {
+      const epoch = Number(epochStr);
+      if (Number.isFinite(epoch)) {
+        points.push({
+          value: sum,
+          createdAt: new Date(epoch).toISOString(),
+        });
+      }
+    });
+
+    // Sort by time
+    points.sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+
+    responseSuccess(res, 'Room presence logs retrieved successfully', {
+      from: fromDate.toISOString(),
+      to: toDate.toISOString(),
+      room: {
+        roomId: room.id,
+        name: room.name,
+        type: room.type,
+        capacity: room.capacity,
+        points,
+      },
+    });
+  } catch (error) {
+    console.error('getPresenceTrendForRoom error:', error);
+    responseError(res, 'Internal server error');
+  }
+};
 //     const to = new Date();
 //     const from = new Date();
 //     from.setMonth(from.getMonth() - 1);

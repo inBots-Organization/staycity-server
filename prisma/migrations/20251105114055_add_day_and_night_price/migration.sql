@@ -1,0 +1,3 @@
+-- AlterTable
+ALTER TABLE "public"."system_settings" ADD COLUMN     "dayPricePerKwh" DOUBLE PRECISION NOT NULL DEFAULT 0.24,
+ADD COLUMN     "nightPricePerKwh" DOUBLE PRECISION NOT NULL DEFAULT 0.16;

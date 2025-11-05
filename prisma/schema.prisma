@@ -287,6 +287,11 @@ model SystemSettings {
   doorOnlyTimeoutMin    Float
   sensorBatteryTimeoutH Float
   pricePerKwh Float @default(0)
+  
+  // 💰 Time-based Pricing (Day/Night rates)
+  dayPricePerKwh   Float @default(0.24)  // 8am to 11pm
+  nightPricePerKwh Float @default(0.16)  // 11pm to 8am
+  
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
