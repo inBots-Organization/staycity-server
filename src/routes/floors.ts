@@ -137,6 +137,96 @@ router.get('/floorComparision', floorController.floorComparision);
 
 /**
  * @swagger
+ * /api/floors/presence-trend:
+ *   get:
+ *     summary: Get presence trends for floors
+ *     tags: [Floors]
+ *     description: |
+ *       Returns raw presence logs per floor within a time window as point arrays.
+ *       Each point contains the sensor reading value and its createdAt timestamp.
+ *     parameters:
+ *       - in: query
+ *         name: buildingId
+ *         schema:
+ *           type: string
+ *         description: Optional building ID to filter floors
+ *       - in: query
+ *         name: from
+ *         schema:
+ *           type: string
+ *           format: date-time
+ *         description: ISO start datetime (default: now - 24h)
+ *       - in: query
+ *         name: to
+ *         schema:
+ *           type: string
+ *           format: date-time
+ *         description: ISO end datetime (default: now)
+ *       - in: query
+ *         name: interval
+ *         schema:
+ *           type: string
+ *           enum: [hour, day]
+ *         description: Bucket interval (default: hour)
+ *     responses:
+ *       200:
+ *         description: Presence trends retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Presence trends retrieved successfully"
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     from:
+ *                       type: string
+ *                       format: date-time
+ *                     to:
+ *                       type: string
+ *                       format: date-time
+ *                     interval:
+ *                       type: string
+ *                       enum: [hour, day]
+ *                     floors:
+ *                       type: array
+ *                       items:
+ *                         type: object
+ *                         properties:
+ *                           floorId:
+ *                             type: string
+ *                           name:
+ *                             type: string
+ *                           level:
+ *                             type: integer
+ *                           points:
+ *                             type: array
+ *                             description: Raw presence log points for this floor (merged from all devices)
+ *                             items:
+ *                               type: object
+ *                               properties:
+ *                                 value:
+ *                                   type: integer
+ *                                   description: Presence value captured by a motion sensor
+ *                                 createdAt:
+ *                                   type: string
+ *                                   format: date-time
+ *                                   description: Log creation timestamp
+ *       400:
+ *         description: Validation error
+ *       500:
+ *         description: Internal server error
+ */
+router.get('/presence-trend', floorController.getPresenceTrendForComparisonFloores);
+
+/**
+ * @swagger
  * /api/floors/{id}:
  *   get:
  *     summary: Get floor by ID

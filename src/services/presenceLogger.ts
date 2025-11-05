@@ -59,20 +59,30 @@ export async function logAllPresence() {
   });
 
   // 3.1) Deduplicate: skip insert if the last stored log for the same externalId has the same value
-  for (const row of candidates) {
-    try {
-      const last = await prisma.presenceLog.findFirst({
-        where: { externalId: row.externalId },
-        orderBy: { createdAt: 'desc' },
-        select: { value: true },
-      });
-      if (!last || last.value !== row.value) {
-        toInsert.push(row);
-      }
-    } catch (e) {
-      failures.push({ deviceId: null, reason: `Lookup failed for ${row.externalId}: ${String(e)}` });
+  let hasAnyChange = false;
+
+for (const row of candidates) {
+  try {
+    const last = await prisma.presenceLog.findFirst({
+      where: { externalId: row.externalId },
+      orderBy: { createdAt: 'desc' },
+      select: { value: true },
+    });
+
+    if (!last || last.value !== row.value) {
+      hasAnyChange = true;
+      break; // وجدنا اختلاف، لا داعي لفحص الباقي
     }
+  } catch (e) {
+    failures.push({ deviceId: null, reason: `Lookup failed for ${row.externalId}: ${String(e)}` });
   }
+}
+
+// ✅ إذا تغير أي حساس → احفظ الكل
+if (hasAnyChange) {
+  toInsert.push(...candidates);
+}
+
 
   // 4) Persist presence logs (if any)
   if (toInsert.length > 0) {
