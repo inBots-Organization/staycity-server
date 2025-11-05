@@ -327,11 +327,21 @@ export class AnalyticsService {
   }
 
   static async getElectricityAnalytics() {
-    // Get all power devices
+    // Get pricing from system settings
+    const systemSettings = await prisma.systemSettings.findFirst();
+    const DAY_PRICE_PER_KWH = systemSettings?.dayPricePerKwh || 0.24;
+    const NIGHT_PRICE_PER_KWH = systemSettings?.nightPricePerKwh || 0.16;
+
+    // Get all power devices, excluding room "242"
     const powerDevices = await prisma.device.findMany({
       where: {
         deviceType: "POWER",
-        externalId: { not: null }
+        externalId: { not: null },
+        room: {
+          NOT: {
+            name: '242'
+          }
+        }
       }
     });
 
@@ -344,15 +354,86 @@ export class AnalyticsService {
     const toStr = from.toISOString().split('.')[0] + 'Z';
     const fromStr = toDate.toISOString().split('.')[0] + 'Z';
 
-    // Batch process electricity analytics in parallel
+    // Batch process electricity analytics with day/night pricing while preserving saving logic
     const electricityAnalyticsPromises = powerDeviceIds.map(async (deviceId) => {
       try {
-        return await this.aranetService.getElectricityAnalytics(
+        // Get the original analytics for saving calculation
+        const originalAnalytics = await this.aranetService.getElectricityAnalytics(
           deviceId,
           process.env['POWER_METRES_ID']!,
           fromStr,
           toStr
         );
+
+        // Get raw sensor history data for day/night pricing
+        const history = await this.aranetService.getHestory(
+          deviceId,
+          process.env['POWER_METRES_ID']!,
+          fromStr,
+          toStr
+        );
+
+        // Calculate day/night energy consumption for different periods
+        const now = new Date();
+        const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+        const oneDayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+
+        const calculateEnergyAndCost = (readings: any[], fromDate: Date, toDate: Date) => {
+          let dayEnergyKwh = 0;
+          let nightEnergyKwh = 0;
+
+          if (Array.isArray(readings)) {
+            for (const reading of readings) {
+              const timestamp = new Date(reading.time);
+              if (timestamp >= fromDate && timestamp <= toDate) {
+                const hour = timestamp.getHours();
+                const energyWh = Number(reading.value) || 0;
+                
+                // Day period: 8am (8) to 11pm (23) - 0.24 per kWh
+                // Night period: 11pm (23) to 8am (8) - 0.16 per kWh
+                if (hour >= 8 && hour < 23) {
+                  dayEnergyKwh += energyWh / 1000;
+                } else {
+                  nightEnergyKwh += energyWh / 1000;
+                }
+              }
+            }
+          }
+
+          const totalEnergy = dayEnergyKwh + nightEnergyKwh;
+          const totalCost = (dayEnergyKwh * DAY_PRICE_PER_KWH) + (nightEnergyKwh * NIGHT_PRICE_PER_KWH);
+
+          return {
+            energy: totalEnergy.toFixed(2),
+            cost: totalCost.toFixed(2)
+          };
+        };
+
+        const readings = (history as any)?.readings || [];
+
+        // Calculate new costs with day/night pricing
+        const monthData = calculateEnergyAndCost(readings, toDate, from);
+        const weekData = calculateEnergyAndCost(readings, oneWeekAgo, from);
+        const dayData = calculateEnergyAndCost(readings, oneDayAgo, from);
+
+        return {
+          month: { 
+            energy: monthData.energy, 
+            cost: monthData.cost, 
+            saving: originalAnalytics.month.saving // Preserve original saving logic
+          },
+          week: { 
+            energy: weekData.energy, 
+            cost: weekData.cost, 
+            saving: originalAnalytics.week.saving // Preserve original saving logic
+          },
+          day: { 
+            energy: dayData.energy, 
+            cost: dayData.cost, 
+            saving: originalAnalytics.day.saving // Preserve original saving logic
+          }
+        };
+
       } catch (error) {
         console.error(`Error fetching electricity analytics for device ${deviceId}:`, error);
         return {

@@ -779,6 +779,92 @@ router.post('/:id/devices/link', validateId, validateDeviceIds, roomController.l
  *         description: Room not found
  */
 router.post('/:id/devices/unlink', validateId, validateDeviceIds, roomController.unlinkDevicesFromRoom);
+
+/**
+ * @swagger
+ * /api/rooms/presence-trend:
+ *   get:
+ *     summary: Get presence trend for a specific room
+ *     tags: [Rooms]
+ *     description: |
+ *       Returns time-series presence data for a specific room, aggregated per minute.
+ *       All sensor values within the same minute are summed to avoid double counting.
+ *     parameters:
+ *       - in: query
+ *         name: roomId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Room ID to get presence trend for
+ *       - in: query
+ *         name: from
+ *         schema:
+ *           type: string
+ *           format: date-time
+ *         description: ISO start datetime (default: now - 48h)
+ *       - in: query
+ *         name: to
+ *         schema:
+ *           type: string
+ *           format: date-time
+ *         description: ISO end datetime (default: now)
+ *     responses:
+ *       200:
+ *         description: Room presence trend retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Room presence logs retrieved successfully"
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     from:
+ *                       type: string
+ *                       format: date-time
+ *                     to:
+ *                       type: string
+ *                       format: date-time
+ *                     room:
+ *                       type: object
+ *                       properties:
+ *                         roomId:
+ *                           type: string
+ *                         name:
+ *                           type: string
+ *                         type:
+ *                           type: string
+ *                           enum: [ROOM, SUITE]
+ *                         capacity:
+ *                           type: integer
+ *                         points:
+ *                           type: array
+ *                           description: Aggregated presence values per minute
+ *                           items:
+ *                             type: object
+ *                             properties:
+ *                               value:
+ *                                 type: integer
+ *                                 description: Total presence count for this minute
+ *                               createdAt:
+ *                                 type: string
+ *                                 format: date-time
+ *                                 description: Minute timestamp
+ *       400:
+ *         description: Room ID is required or invalid date format
+ *       404:
+ *         description: Room not found
+ *       500:
+ *         description: Internal server error
+ */
+router.get('/presence-trend', roomController.getPresenceTrendForRoom);
+
 // router.get('/script/logs', roomController.script);
 
 export default router;

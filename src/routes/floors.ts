@@ -227,6 +227,97 @@ router.get('/presence-trend', floorController.getPresenceTrendForComparisonFloor
 
 /**
  * @swagger
+ * /api/floors/energy-trend:
+ *   get:
+ *     summary: Get energy consumption trends for multiple floors
+ *     tags: [Floors]
+ *     description: |
+ *       Returns time-series energy consumption data for floors, aggregated by hour or day.
+ *       Perfect for creating charts comparing energy usage across floors.
+ *     parameters:
+ *       - in: query
+ *         name: buildingId
+ *         schema:
+ *           type: string
+ *         description: Filter by building ID (optional)
+ *       - in: query
+ *         name: from
+ *         schema:
+ *           type: string
+ *           format: date-time
+ *         description: ISO start datetime (default: now - 24h)
+ *       - in: query
+ *         name: to
+ *         schema:
+ *           type: string
+ *           format: date-time
+ *         description: ISO end datetime (default: now)
+ *       - in: query
+ *         name: interval
+ *         schema:
+ *           type: string
+ *           enum: [hour, day]
+ *           default: hour
+ *         description: Time bucket interval for aggregation
+ *     responses:
+ *       200:
+ *         description: Energy trends retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Energy trends retrieved successfully"
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     from:
+ *                       type: string
+ *                       format: date-time
+ *                     to:
+ *                       type: string
+ *                       format: date-time
+ *                     interval:
+ *                       type: string
+ *                       enum: [hour, day]
+ *                     floors:
+ *                       type: array
+ *                       items:
+ *                         type: object
+ *                         properties:
+ *                           floorId:
+ *                             type: string
+ *                           name:
+ *                             type: string
+ *                           level:
+ *                             type: integer
+ *                           points:
+ *                             type: array
+ *                             description: Energy consumption data points
+ *                             items:
+ *                               type: object
+ *                               properties:
+ *                                 timestamp:
+ *                                   type: string
+ *                                   format: date-time
+ *                                   description: Time bucket timestamp
+ *                                 energyKwh:
+ *                                   type: number
+ *                                   description: Energy consumption in kWh for this time period
+ *       400:
+ *         description: Invalid date format
+ *       500:
+ *         description: Internal server error or POWER_METRES_ID not configured
+ */
+router.get('/energy-trend', floorController.getEnergyTrendForComparisonFloors);
+
+/**
+ * @swagger
  * /api/floors/{id}:
  *   get:
  *     summary: Get floor by ID
