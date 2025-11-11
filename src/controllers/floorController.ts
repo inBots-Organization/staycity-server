@@ -602,5 +602,172 @@ export const getEnergyTrendForComparisonFloors = async (
   }
 };
 
+export const getCombinedTrendForComparisonFloors = async (
+  req: Request,
+  res: Response
+) => {
+  try {
+    const { buildingId } = req.query as { buildingId?: string };
+    const qFrom = typeof req.query['from'] === 'string' ? (req.query['from'] as string) : '';
+    const qTo = typeof req.query['to'] === 'string' ? (req.query['to'] as string) : '';
+
+    // Resolve time range
+    const now = new Date();
+    let fromDate: Date;
+    let toDate: Date;
+    if (qFrom && qTo) {
+      const fromMs = Date.parse(qFrom);
+      const toMs = Date.parse(qTo);
+      if (Number.isNaN(fromMs) || Number.isNaN(toMs)) {
+        responseError(res, 'Invalid from/to date format. Use ISO 8601.', 400);
+        return;
+      }
+      fromDate = new Date(fromMs);
+      toDate = new Date(toMs);
+    } else {
+      toDate = now;
+      fromDate = new Date(now.getTime() - 24 * 60 * 60 * 1000); // default last 24 hours
+    }
+
+    // Get power metric ID from environment
+    const POWER_METRIC = process.env['POWER_METRES_ID'] as string | undefined;
+    if (!POWER_METRIC) {
+      responseError(res, 'POWER_METRES_ID env variable is not configured', 500);
+      return;
+    }
+
+    // Load floors (optionally filter by building)
+    const floorWhere: { buildingId?: string } = {};
+    if (buildingId) floorWhere.buildingId = String(buildingId);
+    const floors = await prisma.floor.findMany({
+      where: floorWhere,
+      orderBy: { level: 'asc' },
+      select: { 
+        id: true, 
+        name: true, 
+        level: true, 
+        buildingId: true,
+        devices: {
+          where: { deviceType: 'POWER', room: { NOT: { name: '242' } } },
+          select: { id: true, externalId: true, floorId: true }
+        }
+      },
+    });
+
+    if (floors.length === 0) {
+      responseSuccess(res, 'No floors found', { 
+        from: fromDate.toISOString(), 
+        to: toDate.toISOString(), 
+        floors: [] 
+      });
+      return;
+    }
+
+    // Initialize AranetDataService
+    const service = new AranetDataService();
+
+    // Fetch presence data for all floors - return raw logs without aggregation
+    const presenceLogs = await prisma.presenceLog.findMany({
+      where: {
+        floorId: { in: floors.map(f => f.id) },
+        createdAt: { gte: fromDate, lte: toDate },
+      },
+      orderBy: { createdAt: 'asc' },
+      select: { createdAt: true, value: true, externalId: true, floorId: true },
+    });
+
+    // Aggregate presence logs by floor per minute (sum values for same minute)
+    const presenceByFloorMinute = new Map<string, number>();
+    presenceLogs.forEach((log) => {
+      const d = new Date(log.createdAt);
+      d.setSeconds(0, 0); // truncate to minute
+      const key = `${log.floorId}|${d.getTime()}`;
+      const prev = presenceByFloorMinute.get(key) || 0;
+      presenceByFloorMinute.set(key, prev + (Number.isFinite(log.value) ? log.value : 0));
+    });
+
+    // Group aggregated presence data by floor
+    const presenceByFloor = new Map<string, { timestamp: string; totalValue: number }[]>();
+    presenceByFloorMinute.forEach((sum, key) => {
+      const parts = key.split('|');
+      if (parts.length !== 2) return;
+      const floorId = parts[0] || '';
+      const epoch = Number(parts[1]);
+      if (!floorId || !Number.isFinite(epoch)) return;
+      const arr = presenceByFloor.get(floorId) ?? [];
+      arr.push({ 
+        timestamp: new Date(epoch).toISOString(), 
+        totalValue: sum 
+      });
+      presenceByFloor.set(floorId, arr);
+    });
+
+    // Process each floor to get combined data
+    const resultFloors = await Promise.all(floors.map(async (floor) => {
+      const powerDevices = floor.devices.filter(d => d.externalId);
+      
+      // Get aggregated presence data for this floor (one entry per minute)
+      const presenceData = presenceByFloor.get(floor.id) || [];
+      
+      // Get energy data for this floor - aggregate by minute
+      let energyData: { timestamp: string; totalValue: number }[] = [];
+      
+      if (powerDevices.length > 0) {
+        // Fetch power data for all devices on this floor
+        const allFloorLogs = await Promise.all(powerDevices.map(async (device) => {
+          try {
+            const data = await service.getHestory(
+              device.externalId as string, 
+              POWER_METRIC, 
+              fromDate.toISOString(), 
+              toDate.toISOString()
+            );
+            return (data as any).readings || [];
+          } catch (error) {
+            console.error(`Failed to fetch logs for device ${device.externalId}:`, error);
+            return [];
+          }
+        }));
+
+        // Flatten all device logs for this floor
+        const flatFloorLogs = allFloorLogs.flat();
+        
+        // Aggregate by day with power logic (sum total consumption) - same as getEnergyTrendForComparisonFloors
+        const dailyAggregated = aggregateLogsByDay(flatFloorLogs, 'power');
+
+        // Convert to response format - same as energy chart endpoint
+        energyData = dailyAggregated.map((log: any) => ({
+          timestamp: `${log.time?.split('T')[0] || ''}T00:00:00.000Z`, // Set to start of day
+          totalValue: Math.round((log.value || 0) / 1000 * 100) / 100, // Convert watts to kWh and round
+        })).sort((a, b) => a.timestamp.localeCompare(b.timestamp));
+      }
+
+      return {
+        floorId: floor.id,
+        name: floor.name,
+        level: floor.level,
+        presenceLogs: presenceData,
+        energyLogs: energyData
+      };
+    }));
+
+    responseSuccess(res, 'Combined presence and energy trends retrieved successfully', {
+      from: fromDate.toISOString(),
+      to: toDate.toISOString(),
+      chartConfig: {
+        axes: {
+          left: { label: 'Energy (kW)', type: 'energy' },
+          right: { label: 'Presence Count', type: 'presence' },
+          bottom: { label: 'Time', type: 'time' }
+        }
+      },
+      floors: resultFloors,
+    });
+  } catch (error) {
+    console.error('getCombinedTrendForComparisonFloors error:', error);
+    responseError(res, 'Internal server error');
+  }
+};
+
 
   

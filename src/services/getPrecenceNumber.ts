@@ -106,9 +106,9 @@ async function callApi<T>(intent: string, data: Record<string, any> = {}): Promi
       headers,
       validateStatus: () => true,
     });
- 
+    console.log("res",res)
     if (res.status !== 200 || res.data.code !== 0) {
-      console.log("res",res)
+      // console.log("res",res)
       throw new Error(`API Error ${res.data.code}: ${res.data.message}`);
     }
 
@@ -127,7 +127,7 @@ export async function getCurrentPresence(sensorId: string): Promise<number> {
   const values = await callApi<AqaraResourceValue[]>("query.resource.value", {
     resources: [{ subjectId: sensorId }],
   });
-
+  console.log("values",values)
   if (!values) {
     console.log("❌ Failed to fetch sensor data");
     return 0;

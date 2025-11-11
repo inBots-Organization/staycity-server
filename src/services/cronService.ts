@@ -107,7 +107,7 @@ function setupAranetDailyLogsJob(): void {
 export function initializeJobs(): void {
   setupAqaraTokenRefreshJob();
   setupAranetDailyLogsJob();
-  setupPresenceLoggingJob();
+  // setupPresenceLoggingJob();
   logger.info('All cron jobs initialized');
 }
 
@@ -125,24 +125,24 @@ export function stopAllJobs(): void {
  * Presence logging job (runs every 2 minutes)
  * Fetches presence values for all motion sensors and stores them in PresenceLog
  */
-function setupPresenceLoggingJob(): void {
-  const job = cron.schedule('*/1 * * * *', async () => {
-    try {
-      logger.info('Running presence logging cron job');
-      const summary = await logAllPresence();
-      logger.info(
-        `Presence logging completed. Inserted: ${summary.inserted}, Failed: ${summary.failed}, Total: ${summary.total}`
-      );
-      if (summary.failed && summary.details?.length) {
-        summary.details.forEach((d: any) =>
-          logger.error(`Presence log failure for device ${d.deviceId || 'unknown'}: ${d.reason}`)
-        );
-      }
-    } catch (error) {
-      logger.error('Error in presence logging cron job:', error);
-    }
-  });
+// function setupPresenceLoggingJob(): void {
+//   const job = cron.schedule('*/1 * * * *', async () => {
+//     try {
+//       logger.info('Running presence logging cron job');
+//       const summary = await logAllPresence();
+//       logger.info(
+//         `Presence logging completed. Inserted: ${summary.inserted}, Failed: ${summary.failed}, Total: ${summary.total}`
+//       );
+//       if (summary.failed && summary.details?.length) {
+//         summary.details.forEach((d: any) =>
+//           logger.error(`Presence log failure for device ${d.deviceId || 'unknown'}: ${d.reason}`)
+//         );
+//       }
+//     } catch (error) {
+//       logger.error('Error in presence logging cron job:', error);
+//     }
+//   });
 
-  jobs.set('presenceLogging', job);
-  logger.info('Presence logging job scheduled');
-}
+//   jobs.set('presenceLogging', job);
+//   logger.info('Presence logging job scheduled');
+// }
