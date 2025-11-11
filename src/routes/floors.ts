@@ -318,6 +318,134 @@ router.get('/energy-trend', floorController.getEnergyTrendForComparisonFloors);
 
 /**
  * @swagger
+ * /api/floors/combined-trend:
+ *   get:
+ *     summary: Get combined presence and energy trends for multiple floors
+ *     tags: [Floors]
+ *     description: |
+ *       Returns time-series data combining both presence and energy consumption for floors.
+ *       Perfect for creating dual-axis charts with presence on right axis, energy on left axis, and time on bottom.
+ *       Each floor has two curves: one for presence count and one for energy consumption per minute.
+ *     parameters:
+ *       - in: query
+ *         name: buildingId
+ *         schema:
+ *           type: string
+ *         description: Filter by building ID (optional)
+ *       - in: query
+ *         name: from
+ *         schema:
+ *           type: string
+ *           format: date-time
+ *         description: ISO start datetime (default: now - 24h)
+ *       - in: query
+ *         name: to
+ *         schema:
+ *           type: string
+ *           format: date-time
+ *         description: ISO end datetime (default: now)
+ *     responses:
+ *       200:
+ *         description: Combined trends retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Combined presence and energy trends retrieved successfully"
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     from:
+ *                       type: string
+ *                       format: date-time
+ *                     to:
+ *                       type: string
+ *                       format: date-time
+ *                     chartConfig:
+ *                       type: object
+ *                       properties:
+ *                         axes:
+ *                           type: object
+ *                           properties:
+ *                             left:
+ *                               type: object
+ *                               properties:
+ *                                 label:
+ *                                   type: string
+ *                                   example: "Energy (kW)"
+ *                                 type:
+ *                                   type: string
+ *                                   example: "energy"
+ *                             right:
+ *                               type: object
+ *                               properties:
+ *                                 label:
+ *                                   type: string
+ *                                   example: "Presence Count"
+ *                                 type:
+ *                                   type: string
+ *                                   example: "presence"
+ *                             bottom:
+ *                               type: object
+ *                               properties:
+ *                                 label:
+ *                                   type: string
+ *                                   example: "Time"
+ *                                 type:
+ *                                   type: string
+ *                                   example: "time"
+ *                     floors:
+ *                       type: array
+ *                       items:
+ *                         type: object
+ *                         properties:
+ *                           floorId:
+ *                             type: string
+ *                           name:
+ *                             type: string
+ *                           level:
+ *                             type: integer
+ *                           presenceLogs:
+ *                             type: array
+ *                             description: Presence data aggregated by minute (one entry per minute)
+ *                             items:
+ *                               type: object
+ *                               properties:
+ *                                 timestamp:
+ *                                   type: string
+ *                                   format: date-time
+ *                                   description: Minute-level timestamp
+ *                                 totalValue:
+ *                                   type: number
+ *                                   description: Total presence count for this minute
+ *                           energyLogs:
+ *                             type: array
+ *                             description: Energy consumption data aggregated by day (one entry per day)
+ *                             items:
+ *                               type: object
+ *                               properties:
+ *                                 timestamp:
+ *                                   type: string
+ *                                   format: date-time
+ *                                   description: Day-level timestamp (start of day)
+ *                                 totalValue:
+ *                                   type: number
+ *                                   description: Total energy consumption in kW for this day (sum of all power devices)
+ *       400:
+ *         description: Invalid date format
+ *       500:
+ *         description: Internal server error or POWER_METRES_ID not configured
+ */
+router.get('/combined-trend', floorController.getCombinedTrendForComparisonFloors);
+
+/**
+ * @swagger
  * /api/floors/{id}:
  *   get:
  *     summary: Get floor by ID
