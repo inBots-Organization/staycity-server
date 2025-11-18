@@ -35,9 +35,9 @@ export function generateToken(user: User): string {
   };
 
   const secret = process.env['JWT_SECRET'] || 'your-secret-key';
-  const expiresIn = process.env['JWT_EXPIRES_IN'] || '7d';
   
-  return jwt.sign(payload, secret, { expiresIn } as jwt.SignOptions);
+  // Issue a token without expiration (no expiresIn) so it does not expire
+  return jwt.sign(payload, secret);
 }
 
 // Authentication middleware

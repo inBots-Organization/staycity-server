@@ -601,6 +601,129 @@ export const getEnergyTrendForComparisonFloors = async (
     responseError(res, 'Internal server error');
   }
 };
+export const getCo2TrendForComparisonFloors = async (
+  req: Request,
+  res: Response
+) => {
+  try {
+    const { buildingId } = req.query as { buildingId?: string };
+    const qFrom = typeof req.query['from'] === 'string' ? (req.query['from'] as string) : '';
+    const qTo = typeof req.query['to'] === 'string' ? (req.query['to'] as string) : '';
+
+    // Resolve time range
+    const now = new Date();
+    let fromDate: Date;
+    let toDate: Date;
+    if (qFrom && qTo) {
+      const fromMs = Date.parse(qFrom);
+      const toMs = Date.parse(qTo);
+      if (Number.isNaN(fromMs) || Number.isNaN(toMs)) {
+        responseError(res, 'Invalid from/to date format. Use ISO 8601.', 400);
+        return;
+      }
+      fromDate = new Date(fromMs);
+      toDate = new Date(toMs);
+    } else {
+      toDate = now;
+      fromDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000); // default last 7 days
+    }
+
+    // Get power metric ID from environment
+    const Co2_METRIC = "3" as string ;
+    if (!Co2_METRIC) {
+      responseError(res, 'Co2_METRIC env variable is not configured', 500);
+      return;
+    }
+
+    // Load floors with power devices (optionally filter by building)
+    const floorWhere: { buildingId?: string } = {};
+    if (buildingId) floorWhere.buildingId = String(buildingId);
+    const floors = await prisma.floor.findMany({
+      where: floorWhere,
+      orderBy: { level: 'asc' },
+      select: { 
+        id: true, 
+        name: true, 
+        level: true, 
+        buildingId: true,
+        devices: {
+          where: { deviceType: 'ENVIRONMENT', room: { NOT: { name: '242' } } },
+          select: { id: true, externalId: true, floorId: true }
+        }
+      },
+    });
+
+    if (floors.length === 0) {
+      responseSuccess(res, 'No floors found', { 
+        from: fromDate.toISOString(), 
+        to: toDate.toISOString(), 
+        floors: [] 
+      });
+      return;
+    }
+
+    // Initialize AranetDataService
+    const service = new AranetDataService();
+
+    // Process each floor to get power data
+    const resultFloors = await Promise.all(floors.map(async (floor) => {
+      const powerDevices = floor.devices.filter(d => d.externalId);
+      
+      if (powerDevices.length === 0) {
+        return {
+          floorId: floor.id,
+          name: floor.name,
+          level: floor.level,
+          points: []
+        };
+      }
+
+      // Fetch power data for all devices on this floor
+      const allFloorLogs = await Promise.all(powerDevices.map(async (device) => {
+        try {
+          const data = await service.getHestory(
+            device.externalId as string, 
+            Co2_METRIC, 
+            fromDate.toISOString(), 
+            toDate.toISOString()
+          );
+          return (data as any).readings || [];
+        } catch (error) {
+          console.error(`Failed to fetch logs for device ${device.externalId}:`, error);
+          return [];
+        }
+      }));
+
+      // Flatten all device logs for this floor
+      const flatFloorLogs = allFloorLogs.flat();
+      
+      // Aggregate by day with power logic (sum total consumption)
+      const dailyAggregated = aggregateLogsByDay(flatFloorLogs);
+
+      // Convert to response format
+      const points = dailyAggregated.map((log: any) => ({
+        date: log.time?.split('T')[0] || '', // Extract date part
+        co2: log.value, 
+      }));
+
+      return {
+        floorId: floor.id,
+        name: floor.name,
+        level: floor.level,
+        points: points.sort((a, b) => a.date.localeCompare(b.date))
+      };
+    }));
+
+    responseSuccess(res, 'Energy trends retrieved successfully', {
+      from: fromDate.toISOString(),
+      to: toDate.toISOString(),
+      floors: resultFloors,
+    });
+  } catch (error) {
+    console.error('getEnergyTrendForComparisonFloors error:', error);
+    responseError(res, 'Internal server error');
+  }
+};
 
 export const getCombinedTrendForComparisonFloors = async (
   req: Request,
