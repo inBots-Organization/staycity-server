@@ -318,6 +318,86 @@ router.get('/energy-trend', floorController.getEnergyTrendForComparisonFloors);
 
 /**
  * @swagger
+ * /api/floors/co2-trend:
+ *   get:
+ *     summary: Get CO₂ trends for multiple floors
+ *     tags: [Floors]
+ *     description: |
+ *       Returns daily aggregated CO₂ readings for floors within a date range. Useful for comparing indoor air quality across floors.
+ *     parameters:
+ *       - in: query
+ *         name: buildingId
+ *         schema:
+ *           type: string
+ *         description: Optional building ID to filter floors
+ *       - in: query
+ *         name: from
+ *         schema:
+ *           type: string
+ *           format: date-time
+ *         description: ISO start datetime (default: now - 7 days)
+ *       - in: query
+ *         name: to
+ *         schema:
+ *           type: string
+ *           format: date-time
+ *         description: ISO end datetime (default: now)
+ *     responses:
+ *       200:
+ *         description: CO₂ trends retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Energy trends retrieved successfully"
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     from:
+ *                       type: string
+ *                       format: date-time
+ *                     to:
+ *                       type: string
+ *                       format: date-time
+ *                     floors:
+ *                       type: array
+ *                       items:
+ *                         type: object
+ *                         properties:
+ *                           floorId:
+ *                             type: string
+ *                           name:
+ *                             type: string
+ *                           level:
+ *                             type: integer
+ *                           points:
+ *                             type: array
+ *                             description: Daily aggregated CO₂ readings for this floor
+ *                             items:
+ *                               type: object
+ *                               properties:
+ *                                 date:
+ *                                   type: string
+ *                                   format: date
+ *                                   description: Day (YYYY-MM-DD)
+ *                                 co2:
+ *                                   type: number
+ *                                   description: Aggregated CO₂ metric value per day
+ *       400:
+ *         description: Invalid date format
+ *       500:
+ *         description: Internal server error
+ */
+router.get('/co2-trend', floorController.getCo2TrendForComparisonFloors);
+
+/**
+ * @swagger
  * /api/floors/combined-trend:
  *   get:
  *     summary: Get combined presence and energy trends for multiple floors
