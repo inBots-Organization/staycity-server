@@ -36,7 +36,7 @@
     2: { name: 'Humidity', unit: '%', type: 'environmental' },
     3: { name: 'CO₂', unit: 'ppm', type: 'environmental' },
     4: { name: 'Atmospheric Pressure', unit: 'hPa', type: 'environmental' },
-    15: { name: 'Pulses', unit: 'pulses', type: 'power' },
+    356: { name: 'Pulses', unit: 'pulses', type: 'power' },
     16: { name: 'Pulses Cumulative', unit: 'pulses', type: 'power' },
     61: { name: 'RSSI', unit: 'dBm', type: 'system' },
     62: { name: 'Battery voltage', unit: '%', type: 'system' },
@@ -272,7 +272,7 @@ ${i + 1}. ${sensor.name} [ID: ${sensor.id}, Type: ${sensor.type}]`);
       case '4':
         return `${val.toFixed(1)} ${unit}`;
       case '3':
-      case '15':
+      case '356':
       case '16':
       case '61':
       case '62':

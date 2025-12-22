@@ -100,7 +100,7 @@
     "type": "S5V17",
     "capabilities": [
       {
-        "metricId": "15",
+        "metricId": "356",
         "name": "Pulses",
         "unit": "pulses"
       },
@@ -136,11 +136,11 @@
       "type": "S5V17",
       "skills": [
         {
-          "metric": "15",
+          "metric": "356",
           "active": true
         },
         {
-          "metric": "16",
+          "metric": "556",
           "active": true
         },
         {

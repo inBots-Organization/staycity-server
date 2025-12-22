@@ -90,11 +90,36 @@ export class AnalyticsService {
   }
 
   // Helper method to calculate device metrics
-  private static calculateDeviceMetrics(devices: DeviceWithMetrics[]) {
+  private static async calculateDeviceMetrics(devices: DeviceWithMetrics[]) {
+    // Filter devices by provider
+    const aranetDevices = devices.filter(d => d.provider === 'aranet' && d.externalId);
+    const aqaraDevices = devices.filter(d => d.provider === 'aqara' && d.externalId);
+    
+    let onlineSensorsCount = 0;
+    
+    // Fetch Aranet data if there are Aranet devices
+    if (aranetDevices.length > 0) {
+      try {
+        const sensorIds = aranetDevices.map(d => d.externalId).join(',');
+        const response = await this.aranetService.fetchLastMeasurements(sensorIds);
+        
+        // Count unique sensor IDs in the response (these are online devices)
+        const uniqueSensors = new Set(response.readings.map(reading => reading.sensor));
+        onlineSensorsCount = uniqueSensors.size;
+        
+      } catch (error) {
+        console.error('Error fetching Aranet measurements:', error);
+        onlineSensorsCount = 0;
+      }
+    }
+    
+    // Calculate offline devices: all Aqara devices + (Aranet devices - online sensors)
+    const offlineDevices = aqaraDevices.length + (aranetDevices.length - onlineSensorsCount);
+    
     return {
       totalDevices: devices.length,
-      onlineDevices: devices.filter(d => d.status === 'ONLINE').length,
-      offlineDevices: devices.filter(d => d.status === 'OFFLINE').length,
+      onlineDevices: onlineSensorsCount,
+      offlineDevices: offlineDevices,
     };
   }
 
@@ -194,75 +219,81 @@ export class AnalyticsService {
     const powerDataMap = new Map<string, number>(powerDataResults);
 
     // Process buildings with cached data
-    const processedBuildings: BuildingWithMetrics[] = buildings.map(building => {
-      const processedFloors: FloorWithMetrics[] = building.floors.map(floor => {
-        const processedRooms: RoomWithMetrics[] = floor.rooms.map(room => {
-          const devices = roomDeviceMap.get(room.id) || [];
-          
-          // Process devices with cached sensor data
-          const processedDevices: DeviceWithMetrics[] = devices.map(device => {
-            let sensorData: SensorData | null = null;
+    const processedBuildings: BuildingWithMetrics[] = await Promise.all(
+      buildings.map(async (building) => {
+        const processedFloors = await Promise.all(
+          building.floors.map(async (floor) => {
+            const processedRooms = await Promise.all(
+              floor.rooms.map(async (room) => {
+                const devices = roomDeviceMap.get(room.id) || [];
+                
+                // Process devices with cached sensor data
+                const processedDevices: DeviceWithMetrics[] = devices.map(device => {
+                  let sensorData: SensorData | null = null;
 
-            if (device.provider === 'aranet') {
-              sensorData = aranetDataMap.get(device.externalId) || null;
-            } else if (device.provider === 'aqara') {
-              sensorData = aqaraDataMap.get(device.externalId) || null;
-            }
+                  if (device.provider === 'aranet') {
+                    sensorData = aranetDataMap.get(device.externalId) || null;
+                  } else if (device.provider === 'aqara') {
+                    sensorData = aqaraDataMap.get(device.externalId) || null;
+                  }
+
+                  return {
+                    id: device.id,
+                    name: device.name,
+                    externalId: device.externalId,
+                    provider: device.provider,
+                    status: device.status,
+                    sensorData,
+                  };
+                });
+
+                const deviceMetrics = await this.calculateDeviceMetrics(processedDevices);
+                const currentPower = powerDataMap.get(room.id) || 0;
+
+                return {
+                  id: room.id,
+                  name: room.name,
+                  type: room.type,
+                  status: room.status,
+                  capacity: room.capacity,
+                  devices: processedDevices,
+                  currentPower,
+                  ...deviceMetrics,
+                };
+              })
+            );
+
+            const floorMetrics = this.calculateRoomMetrics(processedRooms);
 
             return {
-              id: device.id,
-              name: device.name,
-              externalId: device.externalId,
-              provider: device.provider,
-              status: device.status,
-              sensorData,
+              id: floor.id,
+              name: floor.name,
+              level: floor.level,
+              rooms: processedRooms,
+              ...floorMetrics,
             };
-          });
+          })
+        );
 
-          const deviceMetrics = this.calculateDeviceMetrics(processedDevices);
-          const currentPower = powerDataMap.get(room.id) || 0;
-
-          return {
-            id: room.id,
-            name: room.name,
-            type: room.type,
-            status: room.status,
-            capacity: room.capacity,
-            devices: processedDevices,
-            currentPower,
-            ...deviceMetrics,
-          };
-        });
-
-        const floorMetrics = this.calculateRoomMetrics(processedRooms);
+        const buildingMetrics = this.calculateRoomMetrics(
+          processedFloors.flatMap(f => f.rooms)
+        );
 
         return {
-          id: floor.id,
-          name: floor.name,
-          level: floor.level,
-          rooms: processedRooms,
-          ...floorMetrics,
+          id: building.id,
+          name: building.name,
+          address: building.address,
+          rating: building.rating ? Number(building.rating) : null,
+          status: building.status,
+          slug: building.slug,
+          city: building.city,
+          country: building.country,
+          floors: processedFloors,
+          totalFloors: processedFloors.length,
+          ...buildingMetrics,
         };
-      });
-
-      const buildingMetrics = this.calculateRoomMetrics(
-        processedFloors.flatMap(f => f.rooms)
-      );
-
-      return {
-        id: building.id,
-        name: building.name,
-        address: building.address,
-        rating: building.rating ? Number(building.rating) : null,
-        status: building.status,
-        slug: building.slug,
-        city: building.city,
-        country: building.country,
-        floors: processedFloors,
-        totalFloors: processedFloors.length,
-        ...buildingMetrics,
-      };
-    });
+      })
+    );
     // Calculate energy metrics using already fetched data
     const aranetDevices = allDevices.filter(d => d.provider === 'aranet' && d.externalId);
     let total = 0;

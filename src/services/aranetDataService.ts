@@ -345,5 +345,12 @@ export default class AranetDataService {
   return data
 }
 
+  async fetchLastMeasurements(sensorIds: string): Promise<{ readings: any[]; links: any }> {
+    const data = await this.makeRequest('/measurements/last', {
+      sensor: sensorIds,
+    });
+    
+    return data;
+  }
 
 }

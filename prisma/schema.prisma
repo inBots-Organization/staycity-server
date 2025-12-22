@@ -271,6 +271,7 @@ model SystemSettings {
   // 🫁 CO₂ Thresholds
   co2WarningPpm  Float
   co2CriticalPpm Float
+  co2AVG         Float  @default(570)
   co2DebounceSec Float
 
   // 🌡️ Temperature Thresholds
@@ -280,6 +281,7 @@ model SystemSettings {
   tempLowWarning  Float
   tempLowCritical Float
   tempDebounceSec Float
+  tempAVG         Float  @default(570)
 
   // ⚙️ Automation Logic & Timers
   entryConfirmedSec     Float
