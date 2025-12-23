@@ -391,10 +391,11 @@ export class AnalyticsService {
                 
                 // Day period: 8am (8) to 11pm (23) - 0.24 per kWh
                 // Night period: 11pm (23) to 8am (8) - 0.16 per kWh
+                //devide here by 1000 if you want convert to kwh
                 if (hour >= 8 && hour < 23) {
-                  dayEnergyKwh += energyWh / 1000;
+                  dayEnergyKwh += energyWh ;
                 } else {
-                  nightEnergyKwh += energyWh / 1000;
+                  nightEnergyKwh += energyWh ;
                 }
               }
             }
@@ -615,7 +616,7 @@ export class AnalyticsService {
                 const powerReading = powerSensorData.readings.find(r => r.metricId === process.env['POWER_METRES_ID']);
                 if (powerReading) {
                   // Divide power equally between suite rooms
-                  currentReadings.power = (powerReading.value / 1000) / parts.length;
+                  currentReadings.power = (powerReading.value ) / parts.length;
                 }
               }
             }
@@ -672,7 +673,7 @@ export class AnalyticsService {
                     break;
                   default:
                     if (reading.metricId === process.env['POWER_METRES_ID']) {
-                      currentReadings.power = reading.value / 1000;
+                      currentReadings.power = reading.value ;
                     }
                     break;
                 }
@@ -730,7 +731,7 @@ export class AnalyticsService {
                   break;
                 default:
                   if (reading.metricId === process.env['POWER_METRES_ID']) {
-                    currentReadings.power = reading.value / 1000;
+                    currentReadings.power = reading.value ;
                   }
                   break;
               }

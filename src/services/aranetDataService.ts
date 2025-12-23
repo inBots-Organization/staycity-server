@@ -248,7 +248,7 @@ export default class AranetDataService {
     saving:'0'}
   }}
   const lastMonthEnergyWh = data?.readings?.reduce((acc, cur) => acc + cur.value, 0) || 0;
-  const lastMonthEnergyKwh = (lastMonthEnergyWh / 1000)
+  const lastMonthEnergyKwh = (lastMonthEnergyWh )
   const totalPrice = (Number(lastMonthEnergyKwh) * PRICE_PER_KWH)
 
   // 🟡 Last Week Energy
@@ -258,7 +258,7 @@ export default class AranetDataService {
       return logTime >= oneWeekAgo && logTime <= now;
     })
     .reduce((acc, cur) => acc + cur.value, 0);
-  const lastWeekEnergyKwh = (lastWeekEnergyWh / 1000)
+  const lastWeekEnergyKwh = (lastWeekEnergyWh )
   const lastWeekPrice = (Number(lastWeekEnergyKwh) * PRICE_PER_KWH)
 
   // Previous Week Energy (for week savings calculation)
@@ -268,7 +268,7 @@ export default class AranetDataService {
       return logTime >= twoWeeksAgo && logTime < oneWeekAgo;
     })
     .reduce((acc, cur) => acc + cur.value, 0) || 0;
-  const previousWeekEnergyKwh = (previousWeekEnergyWh / 1000)
+  const previousWeekEnergyKwh = (previousWeekEnergyWh )
   const previousWeekPrice = (Number(previousWeekEnergyKwh) * PRICE_PER_KWH)
   
   // Calculate week savings (previous week cost - current week cost)
@@ -282,7 +282,7 @@ export default class AranetDataService {
       return logTime >= oneDayAgo && logTime <= now;
     })
     .reduce((acc, cur) => acc + cur.value, 0);
-  const lastDayEnergyKwh = (lastDayEnergyWh / 1000)
+  const lastDayEnergyKwh = (lastDayEnergyWh )
   const lastDayPrice = (Number(lastDayEnergyKwh) * PRICE_PER_KWH)
 
   // Previous Day Energy (for day savings calculation)
@@ -292,7 +292,7 @@ export default class AranetDataService {
       return logTime >= twoDaysAgo && logTime < oneDayAgo;
     })
     .reduce((acc, cur) => acc + cur.value, 0) || 0;
-  const previousDayEnergyKwh = (previousDayEnergyWh / 1000)
+  const previousDayEnergyKwh = (previousDayEnergyWh )
   const previousDayPrice = (Number(previousDayEnergyKwh) * PRICE_PER_KWH)
   
   // Calculate day savings (previous day cost - current day cost)
