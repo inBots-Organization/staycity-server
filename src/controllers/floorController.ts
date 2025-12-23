@@ -580,7 +580,7 @@ export const getEnergyTrendForComparisonFloors = async (
       // Convert to response format
       const points = dailyAggregated.map((log: any) => ({
         date: log.time?.split('T')[0] || '', // Extract date part
-        energyKwh: Math.round((log.value || 0) / 1000 * 100) / 100, // Convert watts to kWh and round
+        energyKwh: Math.round((log.value || 0)  * 100) / 100, // Convert watts to kWh and round
       }));
 
       return {

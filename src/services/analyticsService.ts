@@ -422,10 +422,11 @@ export class AnalyticsService {
                 
                 // Day period: 8am (8) to 11pm (23) - 0.24 per kWh
                 // Night period: 11pm (23) to 8am (8) - 0.16 per kWh
+                //devide here by 1000 if you want convert to kwh
                 if (hour >= 8 && hour < 23) {
-                  dayEnergyKwh += energyWh / 1000;
+                  dayEnergyKwh += energyWh ;
                 } else {
-                  nightEnergyKwh += energyWh / 1000;
+                  nightEnergyKwh += energyWh ;
                 }
               }
             }
