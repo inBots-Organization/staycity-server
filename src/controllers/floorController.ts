@@ -267,9 +267,9 @@ export const floorComparision = async (
                 // Day period: 8am (8) to 11pm (23) - 0.24 per kWh
                 // Night period: 11pm (23) to 8am (8) - 0.16 per kWh
                 if (hour >= 8 && hour < 23) {
-                  dayEnergyKwh += energyWh / 1000;
+                  dayEnergyKwh += energyWh ;
                 } else {
-                  nightEnergyKwh += energyWh / 1000;
+                  nightEnergyKwh += energyWh ;
                 }
               }
               
@@ -861,7 +861,7 @@ export const getCombinedTrendForComparisonFloors = async (
         // Convert to response format - same as energy chart endpoint
         energyData = dailyAggregated.map((log: any) => ({
           timestamp: `${log.time?.split('T')[0] || ''}T00:00:00.000Z`, // Set to start of day
-          totalValue: Math.round((log.value || 0) / 1000 * 100) / 100, // Convert watts to kWh and round
+          totalValue: Math.round((log.value || 0)  * 100) / 100, // Convert watts to kWh and round
         })).sort((a, b) => a.timestamp.localeCompare(b.timestamp));
       }
 
