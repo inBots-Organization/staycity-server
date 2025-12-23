@@ -202,12 +202,15 @@ export default class AranetDataService {
 ): Promise<{ 
   month:{energy: string; 
   cost: string;
+  persintage: string;
   saving: string; }
   week:{energy: string; 
   cost: string;
+  persintage: string;
   saving: string; }
   day:{energy: string; 
   cost: string;
+  persintage: string;
   saving: string; }
 }> {
   // const PRICE_PER_KWH = 0.16;
@@ -239,12 +242,15 @@ export default class AranetDataService {
     return {
     month:{energy:'0',
     cost:'0',
+    persintage: '0',
     saving:'0'},
     week:{energy:'0',
     cost:'0',
+    persintage: '0',
     saving:'0'},
     day:{energy:'0',
     cost:'0',
+    persintage: "0",
     saving:'0'}
   }}
   const lastMonthEnergyWh = data?.readings?.reduce((acc, cur) => acc + cur.value, 0) || 0;
@@ -273,6 +279,8 @@ export default class AranetDataService {
   
   // Calculate week savings (previous week cost - current week cost)
   const weekSaving = previousWeekPrice - lastWeekPrice;
+  const weekPersintage = (lastWeekPrice/previousWeekPrice)*100
+   console.log("lastWeekPrice=",lastWeekPrice,",,,,,,,,,,","previousWeekPrice",previousWeekPrice,",,,,,,,","weekPersintage",weekPersintage)
   const weekSavingFormatted = weekSaving.toString() ;
 
   // 🔵 Last Day Energy
@@ -298,21 +306,25 @@ export default class AranetDataService {
   // Calculate day savings (previous day cost - current day cost)
   const daySaving = previousDayPrice - lastDayPrice;
   const daySavingFormatted = daySaving.toString() ;
- 
+ const dayPersintage = (lastDayPrice/previousDayPrice)*100
+ console.log("lastDayPrice=",lastDayPrice,",,,,,,,,,,","previousDayPrice",previousDayPrice,",,,,,,,","dayPersintage",dayPersintage)
   return {
     month:{
       energy: lastMonthEnergyKwh.toString(),
       cost: totalPrice.toString(),
+      persintage: 0,
       saving: '0' // Month saving is set to 0 as requested
     },
     week:{
       energy: lastWeekEnergyKwh.toString(),
       cost: lastWeekPrice.toString(),
+      persintage: weekPersintage,
       saving: weekSavingFormatted
     },
     day:{
       energy: lastDayEnergyKwh.toString(),
       cost: lastDayPrice.toString(),
+      persintage: dayPersintage,
       saving: daySavingFormatted
     }
   };

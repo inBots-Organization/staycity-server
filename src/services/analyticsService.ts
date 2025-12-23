@@ -419,7 +419,7 @@ export class AnalyticsService {
               if (timestamp >= fromDate && timestamp <= toDate) {
                 const hour = timestamp.getHours();
                 const energyWh = Number(reading.value) || 0;
-                
+
                 // Day period: 8am (8) to 11pm (23) - 0.24 per kWh
                 // Night period: 11pm (23) to 8am (8) - 0.16 per kWh
                 //devide here by 1000 if you want convert to kwh
@@ -449,19 +449,22 @@ export class AnalyticsService {
         const dayData = calculateEnergyAndCost(readings, oneDayAgo, from);
 
         return {
-          month: { 
-            energy: monthData.energy, 
-            cost: monthData.cost, 
+          month: {
+            energy: monthData.energy,
+            cost: monthData.cost,
+            persintage: originalAnalytics.month.persintage,
             saving: originalAnalytics.month.saving // Preserve original saving logic
           },
-          week: { 
-            energy: weekData.energy, 
-            cost: weekData.cost, 
+          week: {
+            energy: weekData.energy,
+            cost: weekData.cost,
+            persintage: originalAnalytics.week.persintage,
             saving: originalAnalytics.week.saving // Preserve original saving logic
           },
-          day: { 
-            energy: dayData.energy, 
-            cost: dayData.cost, 
+          day: {
+            energy: dayData.energy,
+            cost: dayData.cost,
+            persintage: originalAnalytics.day.persintage,
             saving: originalAnalytics.day.saving // Preserve original saving logic
           }
         };
@@ -469,17 +472,17 @@ export class AnalyticsService {
       } catch (error) {
         console.error(`Error fetching electricity analytics for device ${deviceId}:`, error);
         return {
-          month: { energy: "0", cost: "0", saving: "0" },
-          week: { energy: "0", cost: "0", saving: "0" },
-          day: { energy: "0", cost: "0", saving: "0" }
+          month: { energy: "0", cost: "0", saving: "0", persintage: "0" },
+          week: { energy: "0", cost: "0", saving: "0", persintage: "0" },
+          day: { energy: "0", cost: "0", saving: "0", persintage: "0" }
         };
       }
     });
 
     const electricityResults = await Promise.all(electricityAnalyticsPromises);
 
-    // Aggregate electricity analytics
-    const totalElectricityAnalytics = electricityResults.reduce((acc, analytics) => {
+    // Aggregate electricity analytics (sum energy, cost, and saving)
+    const aggregatedData = electricityResults.reduce((acc, analytics) => {
       (['month', 'week', 'day'] as const).forEach(period => {
         acc[period].energy = (parseFloat(acc[period].energy) + parseFloat(analytics[period].energy)).toFixed(2);
         acc[period].cost = (parseFloat(acc[period].cost) + parseFloat(analytics[period].cost)).toFixed(2);
@@ -491,6 +494,46 @@ export class AnalyticsService {
       week: { energy: "0", cost: "0", saving: "0" },
       day: { energy: "0", cost: "0", saving: "0" }
     });
+
+    // Calculate percentage based on total cost
+    // Week percentage = (current week cost / previous week cost) * 100
+    // Previous week cost = current week cost + week saving
+    const weekPreviousCost = parseFloat(aggregatedData.week.cost) + parseFloat(aggregatedData.week.saving);
+    const weekPersintage = weekPreviousCost > 0
+      ? ((parseFloat(aggregatedData.week.cost) / weekPreviousCost) * 100).toFixed(2)
+      : "0";
+
+    // Day percentage = (current day cost / previous day cost) * 100
+    // Previous day cost = current day cost + day saving
+    const dayPreviousCost = parseFloat(aggregatedData.day.cost) + parseFloat(aggregatedData.day.saving);
+    const dayPersintage = dayPreviousCost > 0
+      ? ((parseFloat(aggregatedData.day.cost) / dayPreviousCost) * 100).toFixed(2)
+      : "0";
+
+    // Month percentage is 0 (no previous month comparison)
+    const monthPersintage = "0";
+
+    // Build final result with percentages
+    const totalElectricityAnalytics = {
+      month: {
+        energy: aggregatedData.month.energy,
+        cost: aggregatedData.month.cost,
+        saving: aggregatedData.month.saving,
+        persintage: monthPersintage
+      },
+      week: {
+        energy: aggregatedData.week.energy,
+        cost: aggregatedData.week.cost,
+        saving: aggregatedData.week.saving,
+        persintage: weekPersintage
+      },
+      day: {
+        energy: aggregatedData.day.energy,
+        cost: aggregatedData.day.cost,
+        saving: aggregatedData.day.saving,
+        persintage: dayPersintage
+      }
+    };
 
     return {
       timestamp: new Date().toISOString(),
