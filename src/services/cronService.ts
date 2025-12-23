@@ -81,8 +81,18 @@ function setupAranetDailyLogsJob(): void {
         }
       }
 
-      const allReadings = Object.values(allLogs)
-        .flatMap(metrics => metrics.flatMap(m => m.readings));
+      const allReadings = Object.entries(allLogs)
+        .flatMap(([sensorId, metrics]) =>
+          metrics.flatMap((m) =>
+            (m.readings || []).map((r: any) => ({
+              metric: String(m.metric ?? r.metric ?? ''),
+              sensor: String(sensorId),
+              value: Number(r.value) || 0,
+              unit: String(r.unit ?? ''),
+              time: String(r.time ?? ''),
+            }))
+          )
+        );
 
       if (allReadings.length > 0) {
         await prisma.logs.createMany({ data: allReadings });
