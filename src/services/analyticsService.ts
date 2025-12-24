@@ -458,13 +458,13 @@ export class AnalyticsService {
           week: {
             energy: weekData.energy,
             cost: weekData.cost,
-            persintage: originalAnalytics.week.persintage,
+            persintage:(originalAnalytics.week.saving/weekData.cost)*100 ,
             saving: originalAnalytics.week.saving // Preserve original saving logic
           },
           day: {
             energy: dayData.energy,
             cost: dayData.cost,
-            persintage: originalAnalytics.day.persintage,
+            persintage: (originalAnalytics.day.saving/dayData.cost)*100,
             saving: originalAnalytics.day.saving // Preserve original saving logic
           }
         };
@@ -525,13 +525,13 @@ export class AnalyticsService {
         energy: aggregatedData.week.energy,
         cost: aggregatedData.week.cost,
         saving: aggregatedData.week.saving,
-        persintage: weekPersintage
+        persintage: (aggregatedData.week.saving/aggregatedData.week.cost)*100 
       },
       day: {
         energy: aggregatedData.day.energy,
         cost: aggregatedData.day.cost,
         saving: aggregatedData.day.saving,
-        persintage: dayPersintage
+        persintage: (aggregatedData.day.saving/aggregatedData.day.cost)*100
       }
     };
 
